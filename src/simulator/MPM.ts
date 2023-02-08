@@ -241,9 +241,9 @@ class MPM extends BaseSimulator {
     ];
     this.bindGroup = bindGroupFactory.create(attributes, this.resource);
 
-    this.initP2GComputePipeline();
-    this.initGridComputePipeline();
-    this.initG2PComputePipeline();
+    await this.initP2GComputePipeline();
+    await this.initGridComputePipeline();
+    await this.initG2PComputePipeline();
 
   }
 
