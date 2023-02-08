@@ -62,10 +62,6 @@ const P2GScattering = wgsl/* wgsl */`
 
 override dx: f32;
 override dt: f32;
-// override gravity: f32;
-// override bound: u32;
-
-// override p_rho: f32;
 override p_vol: f32;
 override p_mass: f32;
 override E: f32;
@@ -74,10 +70,8 @@ override E: f32;
 @group(0) @binding(1) var<storage, read_write> F_v: array<vec3<f32>, ${n_particle}>;
 @group(0) @binding(2) var<storage, read_write> F_C: array<mat3x3<f32>, ${n_particle}>;
 @group(0) @binding(3) var<storage, read_write> F_J: array<f32, ${n_particle}>;
-
 @group(0) @binding(4) var<storage, read_write> F_grid_v: array<array<array<array<atomic<i32>, 4>, ${n_grid}>, ${n_grid}>, ${n_grid}>;
 @group(0) @binding(5) var<storage, read_write> F_grid_m: array<array<array<atomic<i32>, ${n_grid}>, ${n_grid}>, ${n_grid}>;
-
 @group(0) @binding(6) var<storage, read_write> gravity: vec3<f32>;
 
 const identity_mat3x3 = mat3x3<f32>(
@@ -153,10 +147,8 @@ override bound: u32;
 @group(0) @binding(1) var<storage, read_write> F_v: array<vec3<f32>, ${n_particle}>;
 @group(0) @binding(2) var<storage, read_write> F_C: array<mat3x3<f32>, ${n_particle}>;
 @group(0) @binding(3) var<storage, read_write> F_J: array<f32, ${n_particle}>;
-
 @group(0) @binding(4) var<storage, read_write> F_grid_v: array<array<array<vec3<f32>, ${n_grid}>, ${n_grid}>, ${n_grid}>;
 @group(0) @binding(5) var<storage, read_write> F_grid_m: array<array<array<f32, ${n_grid}>, ${n_grid}>, ${n_grid}>;
-
 @group(0) @binding(6) var<storage, read_write> gravity: vec3<f32>;
 
 @compute @workgroup_size(4, 4, 4)
@@ -217,10 +209,8 @@ override dt: f32;
 @group(0) @binding(1) var<storage, read_write> F_v: array<vec3<f32>, ${n_particle}>;
 @group(0) @binding(2) var<storage, read_write> F_C: array<mat3x3<f32>, ${n_particle}>;
 @group(0) @binding(3) var<storage, read_write> F_J: array<f32, ${n_particle}>;
-
 @group(0) @binding(4) var<storage, read_write> F_grid_v: array<array<array<vec3<f32>, ${n_grid}>, ${n_grid}>, ${n_grid}>;
 @group(0) @binding(5) var<storage, read_write> F_grid_m: array<array<array<f32, ${n_grid}>, ${n_grid}>, ${n_grid}>;
-
 @group(0) @binding(6) var<storage, read_write> gravity: vec3<f32>;
 
 @compute @workgroup_size(16, 1, 1)
