@@ -38,15 +38,15 @@ Try: https://linzhouli.github.io/WebGPU-Fluid-Simulation/
 
 ### 符号说明
 
-符号上标表示时间步索引，符号下标表示粒子或网格索引，其中 $$i$$ 表示网格索引，$$p$$ 表示粒子索引。
+符号上标表示时间步索引，符号下标表示粒子或网格索引，其中 $i$ 表示网格索引， $p$ 表示粒子索引。
 
-$$x$$ 表示位置，$$\textbf v$$ 表示速度，$$m$$ 表示质量，$$V$$ 表示体积。
+$x$ 表示位置， $\textbf v$ 表示速度， $m$ 表示质量， $V$ 表示体积。
 
-$$\Delta x$$ 表示网格宽度，$$\Delta t$$ 表示时间步长。
+$\Delta x$ 表示网格宽度， $\Delta t$ 表示时间步长。
 
-$$\textbf F$$ 表示形变梯度，$$\textbf C$$ 表示速度梯度，$$\textbf P$$ 为应力（PK1 stress）。
+$\textbf F$ 表示形变梯度， $\textbf C$ 表示速度梯度， $\textbf P$ 为应力（PK1 stress）。
 
-$$w$$ 为粒子与网格之间插值函数的权重，MPM中使用的是二次B-spline插值函数。
+$w$ 为粒子与网格之间插值函数的权重，MPM中使用的是二次B-spline插值函数。
 
 ### Particle to Grid
 
