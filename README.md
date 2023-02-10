@@ -51,45 +51,31 @@ $w$ 为粒子与网格之间插值函数的权重，MPM中使用的是二次B-sp
 ### Particle to Grid
 
 1. 更新形变梯度
-   $$
-   \textbf F_p^{n+1} = (\textbf I + \Delta t \textbf C_p^n) \textbf F_p^n
-   $$
+   $$ \textbf F_p^{n+1} = (\textbf I + \Delta t \textbf C_p^n) \textbf F_p^n $$
 
 2. 计算网格动量
-   $$
-   (m \textbf v)_i^{n+1} = \sum_p w_{ip} [(m_p \textbf C_p^n - \frac{4\Delta t}{\Delta x^2} V_p^0 \textbf P(\textbf F_p^{n+1}))(x_i - x_p^n) + m_p \textbf v_p]
-   $$
+   $$ (m \textbf v)_i^{n+1} = \sum_p w_{ip} [(m_p \textbf C_p^n - \frac{4\Delta t}{\Delta x^2} V_p^0 \textbf P(\textbf F_p^{n+1}))(x_i - x_p^n) + m_p \textbf v_p] $$
 
 3. 计算网格质量
-   $$
-   m_i^{n+1} = \sum_p w_{ip} m_p
-   $$
+   $$ m_i^{n+1} = \sum_p w_{ip} m_p $$
 
 ### Grid Operations
 
 1. 计算网格速度
-   $$
-   \textbf v_i^{n+1} = (m\textbf v)_i^{n+1} / m_i^{n+1}
-   $$
+   $$ \textbf v_i^{n+1} = (m\textbf v)_i^{n+1} / m_i^{n+1} $$
 
 2. 施加重力与边界条件
 
 ### Grid to Particle
 
 1. 计算粒子速度
-   $$
-   \textbf v_p^{n+1} = \sum_i w_{ip} \textbf v_i^{n+1}
-   $$
+   $$ \textbf v_p^{n+1} = \sum_i w_{ip} \textbf v_i^{n+1} $$
 
 2. 计算粒子速度梯度
-   $$
-   \textbf C_p^{n+1} = \frac {4}{\Delta x^2} \sum_i w_{ip} \textbf v_i^{n+1} (x_i - x_p^n)^T
-   $$
+   $$ \textbf C_p^{n+1} = \frac {4}{\Delta x^2} \sum_i w_{ip} \textbf v_i^{n+1} (x_i - x_p^n)^T $$
 
 3. 更新粒子位置
-   $$
-   x_p^{n+1} = x_p^n + \Delta t \textbf v_p^{n+1}
-   $$
+   $$ x_p^{n+1} = x_p^n + \Delta t \textbf v_p^{n+1} $$
 
 
 
