@@ -52,7 +52,7 @@ $w$ 为粒子与网格之间插值函数的权重，MPM中使用的是二次B-sp
 
 1. 更新形变梯度
    
-   $$ \textbf F_p^{n+1} = (\textbf I + \Delta t \textbf C_p^n) \textbf F_p^n $$
+$$ \textbf F_p^{n+1} = (\textbf I + \Delta t \textbf C_p^n) \textbf F_p^n $$
 
 2. 计算网格动量
    
