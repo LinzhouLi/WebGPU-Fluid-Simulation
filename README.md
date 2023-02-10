@@ -66,7 +66,7 @@ $$ m_i^{n+1} = \sum_p w_{ip} m_p $$
 
 1. 计算网格速度
    
-$$ \textbf v_i^{n+1} = (m\textbf v)_i^{n+1} / m_i^{n+1} $$
+$$ \leftline{\textbf v_i^{n+1} = (m\textbf v)_i^{n+1} / m_i^{n+1}} $$
 
 2. 施加重力与边界条件
 
