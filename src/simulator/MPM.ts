@@ -8,11 +8,11 @@ import { P2GComputeShader, GridComputeShader, G2PComputeShader } from './MPMShad
 class MPM extends BaseSimulator {
 
   private static _ResourceFormats = {
-    particleVelocity: {
+    particle: {
       type: 'buffer' as ResourceType,
-      label: 'Particle Velocity',
+      label: 'Particle Velocity and Plastic Deformation',
       visibility: GPUShaderStage.COMPUTE,
-      usage:  GPUBufferUsage.STORAGE,
+      usage:  GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
       layout: { type: 'storage' as GPUBufferBindingType } as GPUBufferBindingLayout
     },
     particleVelocityGradient: {
@@ -22,25 +22,11 @@ class MPM extends BaseSimulator {
       usage:  GPUBufferUsage.STORAGE,
       layout: { type: 'storage' as GPUBufferBindingType } as GPUBufferBindingLayout
     },
-    particlePlasticDeformation: {
+    grid: {
       type: 'buffer' as ResourceType,
-      label: 'Particle Plastic Deformation',
-      visibility: GPUShaderStage.COMPUTE,
-      usage:  GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      layout: { type: 'storage' as GPUBufferBindingType } as GPUBufferBindingLayout
-    },
-    gridVelocity: { // gridMomentum
-      type: 'buffer' as ResourceType,
-      label: 'Grid Velocity',
+      label: 'Grid Velocity and Mass',
       visibility: GPUShaderStage.COMPUTE,
       usage:  GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST, // commandEncoder.clearBuffer() needs COPY_DST ?
-      layout: { type: 'storage' as GPUBufferBindingType } as GPUBufferBindingLayout
-    },
-    gridMass: {
-      type: 'buffer' as ResourceType,
-      label: 'Grid Mass',
-      visibility: GPUShaderStage.COMPUTE,
-      usage:  GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
       layout: { type: 'storage' as GPUBufferBindingType } as GPUBufferBindingLayout
     },
     gravity: {
@@ -77,7 +63,8 @@ class MPM extends BaseSimulator {
   private GridComputePipeline: GPUComputePipeline;
   private G2PComputePipeline: GPUComputePipeline;
 
-  private bindGroup: { layout: GPUBindGroupLayout, group: GPUBindGroup };
+  private P2GBindGroup: { layout: GPUBindGroupLayout, group: GPUBindGroup };
+  private GridBindGroup: { layout: GPUBindGroupLayout, group: GPUBindGroup };
 
   constructor() {
 
@@ -109,40 +96,38 @@ class MPM extends BaseSimulator {
   public async initResource() {
 
     this.resource = await resourceFactory.createResource(
-      [ 
-        'particleVelocity', 'particleVelocityGradient', 'particlePlasticDeformation',
-        'gridVelocity', 'gridMass', 'gravity'
-      ],
+      [ 'particle', 'grid', 'gravity' ],
       {
-        particleVelocity: { size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT },
-        particleVelocityGradient: { size: 4 * 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT },
-        particlePlasticDeformation: { size: this.particleCount * Float32Array.BYTES_PER_ELEMENT },
-        gridVelocity: { size: 4 * this.gridCount * this.gridCount * this.gridCount * Float32Array.BYTES_PER_ELEMENT },
-        gridMass: { size: this.gridCount * this.gridCount * this.gridCount * Float32Array.BYTES_PER_ELEMENT },
+        particle: { size: 4 * 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT },
+        particleVelocityGradient: { size: 3 * 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT },
+        grid: { size: 4 * this.gridCount * this.gridCount * this.gridCount * Float32Array.BYTES_PER_ELEMENT },
         gravity: { size: 4 * Float32Array.BYTES_PER_ELEMENT },
       }
     );
     this.resource.particlePosition = this.particlePositionBuffer;
     
     // set initial particle position
-    let particlePositionArray = new Float32Array(4 * this.particleCount);
+    let particleArray = new Float32Array(16 * this.particleCount);
     let tempArray = new Array(3).fill(0);
     for (let particleIndex = 0; particleIndex < this.particleCount; particleIndex++) {
-      particlePositionArray.set(
+      particleArray.set(
         tempArray.map(_ => Math.random() * 0.4 + 0.15),
         particleIndex * 4
       );
     }
     device.queue.writeBuffer(
       this.particlePositionBuffer, 0,
-      particlePositionArray, 0
+      particleArray, 0,
+      4 * this.particleCount
     );
 
-    // set initial particle plastic deformation
-    let particlePlasticDeformationArray = new Float32Array(this.particleCount).fill(1.0);
+    // set initial particle plastic deformation = 1
+    for (let particleIndex = 0; particleIndex < this.particleCount; particleIndex++) {
+      particleArray.set( [1.0], particleIndex * 16 + 3 );
+    }
     device.queue.writeBuffer(
-      this.resource.particlePlasticDeformation as GPUBuffer, 0,
-      particlePlasticDeformationArray, 0
+      this.resource.particle as GPUBuffer, 0,
+      particleArray, 0
     );
 
     // set default gravity
@@ -183,7 +168,7 @@ class MPM extends BaseSimulator {
 
     this.P2GComputePipeline = await device.createComputePipelineAsync({
       label: 'MPM P2G Compute Pipeline',
-      layout: device.createPipelineLayout({ bindGroupLayouts: [this.bindGroup.layout] }),
+      layout: device.createPipelineLayout({ bindGroupLayouts: [this.P2GBindGroup.layout] }),
       compute: {
         module: device.createShaderModule({ code: P2GComputeShader(this.particleCount, this.gridCount) }),
         constants: {
@@ -203,7 +188,7 @@ class MPM extends BaseSimulator {
 
     this.GridComputePipeline = await device.createComputePipelineAsync({
       label: 'MPM Grid Compute Pipeline',
-      layout: device.createPipelineLayout({ bindGroupLayouts: [this.bindGroup.layout] }),
+      layout: device.createPipelineLayout({ bindGroupLayouts: [this.GridBindGroup.layout] }),
       compute: {
         module: device.createShaderModule({ code: GridComputeShader(this.particleCount, this.gridCount) }),
         constants: {
@@ -220,7 +205,7 @@ class MPM extends BaseSimulator {
 
     this.G2PComputePipeline = await device.createComputePipelineAsync({
       label: 'MPM G2P Compute Pipeline',
-      layout: device.createPipelineLayout({ bindGroupLayouts: [this.bindGroup.layout] }),
+      layout: device.createPipelineLayout({ bindGroupLayouts: [this.P2GBindGroup.layout] }),
       compute: {
         module: device.createShaderModule({ code: G2PComputeShader(this.particleCount, this.gridCount) }),
         constants: {
@@ -235,11 +220,14 @@ class MPM extends BaseSimulator {
 
   public async initComputePipeline() {
 
-    const attributes = [
-      'particlePosition', 'particleVelocity', 'particleVelocityGradient', 'particlePlasticDeformation',
-      'gridVelocity', 'gridMass', 'gravity'
-    ];
-    this.bindGroup = bindGroupFactory.create(attributes, this.resource);
+    this.P2GBindGroup = bindGroupFactory.create(
+      ['particlePosition', 'particle', 'grid'],
+      this.resource,
+    );
+    this.GridBindGroup = bindGroupFactory.create(
+      ['grid', 'gravity'], 
+      this.resource,
+    );
 
     await this.initP2GComputePipeline();
     await this.initGridComputePipeline();
@@ -250,19 +238,18 @@ class MPM extends BaseSimulator {
   public run(commandEncoder: GPUCommandEncoder) {
 
     // clear grid
-    commandEncoder.clearBuffer(this.resource.gridVelocity as GPUBuffer);
-    commandEncoder.clearBuffer(this.resource.gridMass as GPUBuffer);
+    commandEncoder.clearBuffer(this.resource.grid as GPUBuffer);
 
     const passEncoder = commandEncoder.beginComputePass();
 
     // P2G pass
     passEncoder.setPipeline(this.P2GComputePipeline);
-    passEncoder.setBindGroup(0, this.bindGroup.group);
+    passEncoder.setBindGroup(0, this.P2GBindGroup.group);
     passEncoder.dispatchWorkgroups(Math.ceil(this.particleCount / 16));
 
     // grid pass
     passEncoder.setPipeline(this.GridComputePipeline);
-    passEncoder.setBindGroup(0, this.bindGroup.group);
+    passEncoder.setBindGroup(0, this.GridBindGroup.group);
     passEncoder.dispatchWorkgroups(
       Math.ceil(this.gridCount / 4),
       Math.ceil(this.gridCount / 4),
@@ -271,7 +258,7 @@ class MPM extends BaseSimulator {
 
     // G2P pass
     passEncoder.setPipeline(this.G2PComputePipeline);
-    passEncoder.setBindGroup(0, this.bindGroup.group);
+    passEncoder.setBindGroup(0, this.P2GBindGroup.group);
     passEncoder.dispatchWorkgroups(Math.ceil(this.particleCount / 16));
 
     passEncoder.end();

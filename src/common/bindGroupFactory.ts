@@ -8,7 +8,7 @@ class BindGroupFactory {
 
   }
 
-  createLayout(attributes: string[]) {
+  createLayout(attributes: string[], groupLabel: string = undefined) {
 
     let entries: GPUBindGroupLayoutEntry[] = [];
 
@@ -54,7 +54,7 @@ class BindGroupFactory {
 
     }
     
-    return device.createBindGroupLayout({ entries });
+    return device.createBindGroupLayout({ entries, label: groupLabel });
     
   }
 
@@ -67,7 +67,7 @@ class BindGroupFactory {
 
     let layout: GPUBindGroupLayout;
     if (groupLayout) layout = groupLayout;
-    else layout = this.createLayout(attributes);
+    else layout = this.createLayout(attributes, groupLabel);
 
     let entries: GPUBindGroupEntry[] = [];
 

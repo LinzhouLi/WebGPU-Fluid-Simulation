@@ -8,12 +8,11 @@ const P2GScattering = wgsl/* wgsl */`
   i = i + base.x; j = j + base.y; k = k + base.z; 
 
   if ( i >= 0 && i < ${n_grid} && j >= 0 && j < ${n_grid} && k >= 0 && k < ${n_grid} ) {
-    let v_del = weight * (p_mass * F_v[p] + affine * dpos);
-    let m_del = weight * p_mass;
+    v_del = weight * (p_mass * v_p + affine * dpos);
+    m_del = weight * p_mass;
 
-    var old_val: f32; var new_val: f32;
     loop {
-      let atomic_storage_ptr = &(F_grid_v[i][j][k][0]);
+      let atomic_storage_ptr = &(grid[i][j][k][0]);
       old_val= bitcast<f32>(atomicLoad(atomic_storage_ptr));
       new_val = old_val + v_del.x;
       if ( 
@@ -24,7 +23,7 @@ const P2GScattering = wgsl/* wgsl */`
     }
 
     loop {
-      let atomic_storage_ptr = &(F_grid_v[i][j][k][1]);
+      let atomic_storage_ptr = &(grid[i][j][k][1]);
       old_val = bitcast<f32>(atomicLoad(atomic_storage_ptr));
       new_val = old_val + v_del.y;
       if ( 
@@ -35,7 +34,7 @@ const P2GScattering = wgsl/* wgsl */`
     }
 
     loop {
-      let atomic_storage_ptr = &(F_grid_v[i][j][k][2]);
+      let atomic_storage_ptr = &(grid[i][j][k][2]);
       old_val = bitcast<f32>(atomicLoad(atomic_storage_ptr));
       new_val = old_val + v_del.z;
       if ( 
@@ -46,14 +45,16 @@ const P2GScattering = wgsl/* wgsl */`
     }
 
     loop {
-      let atomic_storage_ptr = &(F_grid_m[i][j][k]);
+      let atomic_storage_ptr = &(grid[i][j][k][3]);
       old_val = bitcast<f32>(atomicLoad(atomic_storage_ptr));
       new_val = old_val + m_del;
       if ( 
         atomicCompareExchangeWeak(
           atomic_storage_ptr, bitcast<i32>(old_val), bitcast<i32>(new_val)
         ).exchanged
-      ) { break; }
+      ) {
+        break; 
+      }
     }
   }
 `;
@@ -66,13 +67,14 @@ override p_vol: f32;
 override p_mass: f32;
 override E: f32;
 
-@group(0) @binding(0) var<storage, read_write> F_x: array<vec3<f32>, ${n_particle}>;
-@group(0) @binding(1) var<storage, read_write> F_v: array<vec3<f32>, ${n_particle}>;
-@group(0) @binding(2) var<storage, read_write> F_C: array<mat3x3<f32>, ${n_particle}>;
-@group(0) @binding(3) var<storage, read_write> F_J: array<f32, ${n_particle}>;
-@group(0) @binding(4) var<storage, read_write> F_grid_v: array<array<array<array<atomic<i32>, 4>, ${n_grid}>, ${n_grid}>, ${n_grid}>;
-@group(0) @binding(5) var<storage, read_write> F_grid_m: array<array<array<atomic<i32>, ${n_grid}>, ${n_grid}>, ${n_grid}>;
-@group(0) @binding(6) var<storage, read_write> gravity: vec3<f32>;
+struct Particle {
+  v: vec4<f32>,
+  C: mat3x3<f32>
+};
+
+@group(0) @binding(0) var<storage, read_write> x: array<vec3<f32>, ${n_particle}>;
+@group(0) @binding(1) var<storage, read_write> particle_set: array<Particle, ${n_particle}>;
+@group(0) @binding(2) var<storage, read_write> grid: array<array<array<array<atomic<i32>, 4>, ${n_grid}>, ${n_grid}>, ${n_grid}>;
 
 const identity_mat3x3 = mat3x3<f32>(
   1.0, 0.0, 0.0,
@@ -86,7 +88,13 @@ fn main(@builtin(global_invocation_id) global_index : vec3<u32>) {
   let p = global_index.x;
   if (p >= ${n_particle}) { return; }
 
-  let Xp = F_x[p] / dx;
+  let particle = particle_set[p];
+  let x_p = x[p];
+  let v_p = particle.v.xyz;
+  let C_p = particle.C;
+  let J_p = particle.v.w * (1.0 + dt * (C_p[0][0] + C_p[1][1] + C_p[2][2]));
+
+  let Xp = x_p / dx;
   let base = vec3<u32>(Xp - 0.5);
   let fx = Xp - vec3<f32>(base);
   let w = mat3x3<f32>(
@@ -95,11 +103,13 @@ fn main(@builtin(global_invocation_id) global_index : vec3<u32>) {
     0.5 * (fx - 0.5) * (fx - 0.5)
   );
 
-  let stress = -dt * 4.0 * E * p_vol * (F_J[p] - 1.0) / (dx * dx);
-  let affine = stress * identity_mat3x3 + p_mass * F_C[p];
+  let stress = -dt * 4.0 * E * p_vol * (J_p - 1.0) / (dx * dx);
+  let affine = stress * identity_mat3x3 + p_mass * C_p;
 
   var i: u32; var j: u32; var k: u32;
   var weight: f32; var dpos: vec3<f32>;
+  var old_val: f32; var new_val: f32;
+  var v_del: vec3<f32>; var m_del: f32; 
 
   i = 0; j = 0; k = 0; ${P2GScattering}
   i = 0; j = 0; k = 1; ${P2GScattering}
@@ -131,6 +141,8 @@ fn main(@builtin(global_invocation_id) global_index : vec3<u32>) {
   i = 2; j = 2; k = 1; ${P2GScattering}
   i = 2; j = 2; k = 2; ${P2GScattering}
 
+  particle_set[p].v.w = J_p;
+
 }
 
   `;
@@ -143,24 +155,20 @@ function GridComputeShader(n_particle: number, n_grid: number) {
 override dt: f32;
 override bound: u32;
 
-@group(0) @binding(0) var<storage, read_write> F_x: array<vec3<f32>, ${n_particle}>;
-@group(0) @binding(1) var<storage, read_write> F_v: array<vec3<f32>, ${n_particle}>;
-@group(0) @binding(2) var<storage, read_write> F_C: array<mat3x3<f32>, ${n_particle}>;
-@group(0) @binding(3) var<storage, read_write> F_J: array<f32, ${n_particle}>;
-@group(0) @binding(4) var<storage, read_write> F_grid_v: array<array<array<vec3<f32>, ${n_grid}>, ${n_grid}>, ${n_grid}>;
-@group(0) @binding(5) var<storage, read_write> F_grid_m: array<array<array<f32, ${n_grid}>, ${n_grid}>, ${n_grid}>;
-@group(0) @binding(6) var<storage, read_write> gravity: vec3<f32>;
+@group(0) @binding(0) var<storage, read_write> grid: array<array<array<vec4<f32>, ${n_grid}>, ${n_grid}>, ${n_grid}>;
+@group(0) @binding(1) var<storage, read_write> gravity: vec4<f32>;
 
 @compute @workgroup_size(4, 4, 4)
 fn main(@builtin(global_invocation_id) global_index : vec3<u32>) {
 
   let i = global_index.x; let j = global_index.y; let k = global_index.z;
   if (i >= ${n_grid} || j >= ${n_grid} || k >= ${n_grid}) { return; }
+  let grid_node = grid[i][j][k];
 
   // momentum -> velocity
-  var velocity = vec3<f32>();
-  if (F_grid_m[i][j][k] > 0.0) { 
-    velocity = F_grid_v[i][j][k] / F_grid_m[i][j][k]; 
+  var velocity = vec4<f32>();
+  if (grid_node.w > 0.0) { 
+    velocity = grid_node / grid_node.w; 
   }
 
   // apply gravity
@@ -178,7 +186,7 @@ fn main(@builtin(global_invocation_id) global_index : vec3<u32>) {
     velocity.z = 0.0;
   }
 
-  F_grid_v[i][j][k] = velocity;
+  grid[i][j][k] = velocity;
 
 }
 
@@ -191,12 +199,12 @@ const G2PGathering = wgsl/* wgsl */`
   dpos = (vec3<f32>(vec3<u32>(i, j, k)) - fx) * dx;
   weight = w[i][0] * w[j][1] * w[k][2];
   i = i + base.x; j = j + base.y; k = k + base.z; 
-  velocity = F_grid_v[i][j][k];
+  velocity = grid[i][j][k];
   new_v = new_v + weight * velocity;
   new_C = new_C + inv4_dx2 * weight * mat3x3<f32>(
-    velocity[0] * dpos,
-    velocity[1] * dpos,
-    velocity[2] * dpos
+    velocity.x * dpos,
+    velocity.y * dpos,
+    velocity.z * dpos
   );
 `;
 
@@ -205,13 +213,14 @@ const G2PGathering = wgsl/* wgsl */`
 override dx: f32;
 override dt: f32;
 
-@group(0) @binding(0) var<storage, read_write> F_x: array<vec3<f32>, ${n_particle}>;
-@group(0) @binding(1) var<storage, read_write> F_v: array<vec3<f32>, ${n_particle}>;
-@group(0) @binding(2) var<storage, read_write> F_C: array<mat3x3<f32>, ${n_particle}>;
-@group(0) @binding(3) var<storage, read_write> F_J: array<f32, ${n_particle}>;
-@group(0) @binding(4) var<storage, read_write> F_grid_v: array<array<array<vec3<f32>, ${n_grid}>, ${n_grid}>, ${n_grid}>;
-@group(0) @binding(5) var<storage, read_write> F_grid_m: array<array<array<f32, ${n_grid}>, ${n_grid}>, ${n_grid}>;
-@group(0) @binding(6) var<storage, read_write> gravity: vec3<f32>;
+struct Particle {
+  v: vec3<f32>,
+  C: mat3x3<f32>
+};
+
+@group(0) @binding(0) var<storage, read_write> x: array<vec3<f32>, ${n_particle}>;
+@group(0) @binding(1) var<storage, read_write> particle_set: array<Particle, ${n_particle}>;
+@group(0) @binding(2) var<storage, read_write> grid: array<array<array<vec3<f32>, ${n_grid}>, ${n_grid}>, ${n_grid}>;
 
 @compute @workgroup_size(16, 1, 1)
 fn main(@builtin(global_invocation_id) global_index : vec3<u32>) {
@@ -219,7 +228,8 @@ fn main(@builtin(global_invocation_id) global_index : vec3<u32>) {
   let p = global_index.x;
   if (p >= ${n_particle}) { return; }
 
-  let Xp = F_x[p] / dx;
+  let x_p = x[p];
+  let Xp = x_p / dx;
   let base = vec3<u32>(Xp - 0.5);
   let fx = Xp - vec3<f32>(base);
   let w = mat3x3<f32>(
@@ -264,10 +274,9 @@ fn main(@builtin(global_invocation_id) global_index : vec3<u32>) {
   i = 2; j = 2; k = 1; ${G2PGathering}
   i = 2; j = 2; k = 2; ${G2PGathering}
 
-  F_v[p] = new_v;
-  F_C[p] = new_C;
-  F_x[p] = F_x[p] + dt * new_v;
-  F_J[p] = F_J[p] * (1.0 + dt * (new_C[0][0] + new_C[1][1] + new_C[2][2]));
+  particle_set[p].v = new_v;
+  particle_set[p].C = new_C;
+  x[p] = x_p + dt * new_v;
 
 }
 
