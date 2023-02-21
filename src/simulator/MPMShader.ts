@@ -82,7 +82,7 @@ const identity_mat3x3 = mat3x3<f32>(
   0.0, 0.0, 1.0
 );
 
-@compute @workgroup_size(16, 1, 1)
+@compute @workgroup_size(4, 1, 1)
 fn main(@builtin(global_invocation_id) global_index : vec3<u32>) {
 
   let p = global_index.x;
@@ -158,7 +158,7 @@ override bound: u32;
 @group(0) @binding(0) var<storage, read_write> grid: array<array<array<vec4<f32>, ${n_grid}>, ${n_grid}>, ${n_grid}>;
 @group(0) @binding(1) var<storage, read_write> gravity: vec4<f32>;
 
-@compute @workgroup_size(4, 4, 4)
+@compute @workgroup_size(2, 2, 2)
 fn main(@builtin(global_invocation_id) global_index : vec3<u32>) {
 
   let i = global_index.x; let j = global_index.y; let k = global_index.z;
@@ -222,7 +222,7 @@ struct Particle {
 @group(0) @binding(1) var<storage, read_write> particle_set: array<Particle, ${n_particle}>;
 @group(0) @binding(2) var<storage, read_write> grid: array<array<array<vec3<f32>, ${n_grid}>, ${n_grid}>, ${n_grid}>;
 
-@compute @workgroup_size(16, 1, 1)
+@compute @workgroup_size(4, 1, 1)
 fn main(@builtin(global_invocation_id) global_index : vec3<u32>) {
 
   let p = global_index.x;

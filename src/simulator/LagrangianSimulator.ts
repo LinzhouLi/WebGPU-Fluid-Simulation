@@ -2,7 +2,7 @@ import type { ResourceType } from '../common/resourceFactory';
 import { ResourceFactory } from '../common/resourceFactory';
 import { device } from '../controller';
 
-abstract class BaseSimulator {
+abstract class LagrangianSimulator {
 
   private static ResourceFormats = {
     particlePosition: {
@@ -30,7 +30,7 @@ abstract class BaseSimulator {
   }
 
   public static RegisterResourceFormats() {
-    ResourceFactory.RegisterFormats(BaseSimulator.ResourceFormats);
+    ResourceFactory.RegisterFormats(LagrangianSimulator.ResourceFormats);
   }
 
   public abstract initResource(): Promise<void>;
@@ -42,4 +42,4 @@ abstract class BaseSimulator {
 
 }
 
-export { BaseSimulator };
+export { LagrangianSimulator };

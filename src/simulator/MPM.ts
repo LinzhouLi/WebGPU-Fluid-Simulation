@@ -1,11 +1,11 @@
 import { device } from '../controller';
 import type { ResourceType } from '../common/resourceFactory';
 import { ResourceFactory } from '../common/resourceFactory';
-import { BaseSimulator } from "./baseSimulator";
+import { LagrangianSimulator } from "./LagrangianSimulator";
 import { resourceFactory, bindGroupFactory } from '../common/base';
 import { P2GComputeShader, GridComputeShader, G2PComputeShader } from './MPMShader';
 
-class MPM extends BaseSimulator {
+class MPM extends LagrangianSimulator {
 
   private static _ResourceFormats = {
     particle: {
@@ -13,13 +13,6 @@ class MPM extends BaseSimulator {
       label: 'Particle Velocity and Plastic Deformation',
       visibility: GPUShaderStage.COMPUTE,
       usage:  GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      layout: { type: 'storage' as GPUBufferBindingType } as GPUBufferBindingLayout
-    },
-    particleVelocityGradient: {
-      type: 'buffer' as ResourceType,
-      label: 'Particle Velocity Gradient',
-      visibility: GPUShaderStage.COMPUTE,
-      usage:  GPUBufferUsage.STORAGE,
       layout: { type: 'storage' as GPUBufferBindingType } as GPUBufferBindingLayout
     },
     grid: {
@@ -71,7 +64,7 @@ class MPM extends BaseSimulator {
     const n_grid = 32;
     super( 9000, 25 );
 
-    this.timeStep = 1e-4;
+    this.timeStep = 4e-4;
     this.gridCount = n_grid;
     this.gridLength = 1 / n_grid;
     this.bound = 3.0;
@@ -99,7 +92,6 @@ class MPM extends BaseSimulator {
       [ 'particle', 'grid', 'gravity' ],
       {
         particle: { size: 4 * 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT },
-        particleVelocityGradient: { size: 3 * 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT },
         grid: { size: 4 * this.gridCount * this.gridCount * this.gridCount * Float32Array.BYTES_PER_ELEMENT },
         gravity: { size: 4 * Float32Array.BYTES_PER_ELEMENT },
       }
@@ -245,21 +237,21 @@ class MPM extends BaseSimulator {
     // P2G pass
     passEncoder.setPipeline(this.P2GComputePipeline);
     passEncoder.setBindGroup(0, this.P2GBindGroup.group);
-    passEncoder.dispatchWorkgroups(Math.ceil(this.particleCount / 16));
+    passEncoder.dispatchWorkgroups(Math.ceil(this.particleCount / 4));
 
     // grid pass
     passEncoder.setPipeline(this.GridComputePipeline);
     passEncoder.setBindGroup(0, this.GridBindGroup.group);
     passEncoder.dispatchWorkgroups(
-      Math.ceil(this.gridCount / 4),
-      Math.ceil(this.gridCount / 4),
-      Math.ceil(this.gridCount / 4)
+      Math.ceil(this.gridCount / 2),
+      Math.ceil(this.gridCount / 2),
+      Math.ceil(this.gridCount / 2)
     );
 
     // G2P pass
     passEncoder.setPipeline(this.G2PComputePipeline);
     passEncoder.setBindGroup(0, this.P2GBindGroup.group);
-    passEncoder.dispatchWorkgroups(Math.ceil(this.particleCount / 16));
+    passEncoder.dispatchWorkgroups(Math.ceil(this.particleCount / 4));
 
     passEncoder.end();
 

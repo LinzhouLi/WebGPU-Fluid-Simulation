@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GlobalResource } from './renderer/globalResource';
 import { Particles } from './renderer/particles';
-import { BaseSimulator } from './simulator/baseSimulator';
+import { LagrangianSimulator } from './simulator/LagrangianSimulator';
 import { MPM } from './simulator/MPM';
 
 
@@ -85,7 +85,7 @@ class Controller {
   public globalResource: GlobalResource;
 
   private particles: Particles;
-  private simulator: BaseSimulator;
+  private simulator: LagrangianSimulator;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -94,7 +94,7 @@ class Controller {
   private RegisterResourceFormats() {
     GlobalResource.RegisterResourceFormats();
     Particles.RegisterResourceFormats();
-    BaseSimulator.RegisterResourceFormats();
+    LagrangianSimulator.RegisterResourceFormats();
     MPM._RegisterResourceFormats();
   }
 

@@ -4,7 +4,7 @@ import type { ResourceType, BufferData } from '../common/resourceFactory';
 import { device, canvasFormat } from '../controller';
 import { resourceFactory, vertexBufferFactory } from '../common/base';
 import { ResourceFactory } from '../common/resourceFactory';
-import { BaseSimulator } from '../simulator/baseSimulator';
+import { LagrangianSimulator } from '../simulator/LagrangianSimulator';
 import { vertexShader, fragmentShader } from './shader';
 
 class Particles {
@@ -24,7 +24,7 @@ class Particles {
 
   protected mesh: THREE.Mesh;
   protected renderPipeline: GPURenderPipeline;
-  protected simulator: BaseSimulator;
+  protected simulator: LagrangianSimulator;
 
   protected vertexCount: number;
   protected vertexBufferAttributes: string[]; // resource name
@@ -35,7 +35,7 @@ class Particles {
   protected resourceCPUData: Record<string, BufferData>; // resource in CPU
   protected resource: Record<string, GPUBuffer | GPUTexture | GPUSampler>; // resource in GPU
 
-  constructor(simulator: BaseSimulator) {
+  constructor(simulator: LagrangianSimulator) {
 
     this.simulator = simulator;
     this.mesh = new THREE.Mesh(
