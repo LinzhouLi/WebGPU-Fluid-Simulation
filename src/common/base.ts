@@ -7,10 +7,12 @@ type TypedArray = Float64Array | Float32Array | Int32Array | Uint32Array | Int16
 const vertexBufferFactory = new VertexBufferFactory();
 const resourceFactory = new ResourceFactory();
 const bindGroupFactory = new BindGroupFactory();
+const EnvMapResolution = 2048;
 
 export type { TypedArray };
 
 export {
+  EnvMapResolution,
   vertexBufferFactory,
   resourceFactory,
   bindGroupFactory

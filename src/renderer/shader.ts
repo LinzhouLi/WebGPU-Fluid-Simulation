@@ -4,7 +4,7 @@ const vertexShader = wgsl/* wgsl */`
 
 struct Camera {
   position: vec3<f32>,
-  viewMaterial: mat4x4<f32>,
+  viewMatrix: mat4x4<f32>,
   projectionMatrix: mat4x4<f32>
 };
 
@@ -37,7 +37,7 @@ struct VertexOutput {
 fn main(input: VertexInput) -> VertexOutput {
   let positionWorld = input.position +  instancePositions[input.instanceIndex];
   // let positionWorld = input.position;
-  let positionScreen = camera.projectionMatrix * camera.viewMaterial * vec4<f32>(positionWorld, 1.0);
+  let positionScreen = camera.projectionMatrix * camera.viewMatrix * vec4<f32>(positionWorld, 1.0);
   return VertexOutput(
     positionScreen, positionWorld,
     input.normal, input.uv
@@ -51,7 +51,7 @@ const fragmentShader = wgsl/* wgsl */`
 
 struct Camera {
   position: vec3<f32>,
-  viewMaterial: mat4x4<f32>,
+  viewMatrix: mat4x4<f32>,
   projectionMatrix: mat4x4<f32>
 };
 

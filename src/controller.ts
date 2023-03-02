@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GlobalResource } from './renderer/globalResource';
 import { Particles } from './renderer/particles';
+import { Skybox } from './renderer/skybox';
 import { LagrangianSimulator } from './simulator/LagrangianSimulator';
 import { MPM } from './simulator/MPM';
 
@@ -84,6 +85,7 @@ class Controller {
   private camera: THREE.PerspectiveCamera;
   public globalResource: GlobalResource;
 
+  private skybox: Skybox;
   private particles: Particles;
   private simulator: LagrangianSimulator;
 
@@ -135,6 +137,7 @@ class Controller {
 
     this.RegisterResourceFormats();
 
+    // global resource
     this.camera = camera;
     this.camera.updateMatrixWorld();
     this.camera.updateProjectionMatrix(); 
@@ -142,19 +145,26 @@ class Controller {
     await this.globalResource.initResource();
     this.renderDepthMapView = (this.globalResource.resource.renderDepthMap as GPUTexture).createView();
 
+    // MPM simulator
     this.simulator = new MPM();
     await this.simulator.initResource();
     await this.simulator.initComputePipeline();
     this.simulator.enableInteraction();
 
+    // fluid renderer
     this.particles = new Particles(this.simulator);
     this.particles.initVertexBuffer();
     await this.particles.initGroupResource();
+
+    // sky box renderer
+    this.skybox = new Skybox();
+    this.skybox.initVertexBuffer();
 
     const renderBundleEncoder = device.createRenderBundleEncoder({
       colorFormats: [ canvasFormat ],
       depthStencilFormat: 'depth32float' // format of renderDepthMap
     });
+    await this.skybox.setRenderBundle(renderBundleEncoder, this.globalResource.resource)
     await this.particles.setRenderBundle(renderBundleEncoder, this.globalResource.resource);
     this.renderBundle = renderBundleEncoder.finish();
 
