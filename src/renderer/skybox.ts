@@ -9,6 +9,7 @@ const skyboxVertexShader = /* wgsl */`
 struct Camera {
   position: vec3<f32>,
   viewMatrix: mat4x4<f32>,
+  viewMatrixInverse: mat4x4<f32>,
   projectionMatrix: mat4x4<f32>
 };
 @group(0) @binding(0) var<uniform> camera: Camera;
@@ -32,12 +33,21 @@ const skyboxFragmentShader = /* wgsl */`
 @group(0) @binding(1) var linearSampler: sampler;
 @group(0) @binding(2) var envMap: texture_cube<f32>;
 
+fn sRGBGammaEncode(color: vec3<f32>) -> vec3<f32> {
+  return mix(
+    color.rgb * 12.92,                                    // x <= 0.0031308
+    pow(color.rgb, vec3<f32>(0.41666)) * 1.055 - 0.055,   // x >  0.0031308
+    saturate(sign(color.rgb - 0.0031308))
+  );
+}
+
 @fragment
 fn main(
   @builtin(position) position : vec4<f32>,
   @location(0) fragPosition : vec3<f32>,
 ) -> @location(0) vec4<f32> {
-  return textureSampleLevel(envMap, linearSampler, fragPosition, 0);
+  let color_linear = textureSampleLevel(envMap, linearSampler, fragPosition, 0);
+  return vec4<f32>(sRGBGammaEncode(color_linear.xyz), 1.0);
 }
 `;
 

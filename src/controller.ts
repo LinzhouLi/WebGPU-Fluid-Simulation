@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GlobalResource } from './renderer/globalResource';
-import { Particles } from './renderer/particles';
+import { SpriteParticles } from './renderer/spriteParticles/particles';
 import { Skybox } from './renderer/skybox';
 import { LagrangianSimulator } from './simulator/LagrangianSimulator';
 import { MPM } from './simulator/MPM';
@@ -86,7 +86,7 @@ class Controller {
   public globalResource: GlobalResource;
 
   private skybox: Skybox;
-  private particles: Particles;
+  private particles: SpriteParticles;
   private simulator: LagrangianSimulator;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -95,7 +95,7 @@ class Controller {
 
   private RegisterResourceFormats() {
     GlobalResource.RegisterResourceFormats();
-    Particles.RegisterResourceFormats();
+    SpriteParticles.RegisterResourceFormats();
     LagrangianSimulator.RegisterResourceFormats();
     MPM._RegisterResourceFormats();
   }
@@ -152,7 +152,7 @@ class Controller {
     this.simulator.enableInteraction();
 
     // fluid renderer
-    this.particles = new Particles(this.simulator);
+    this.particles = new SpriteParticles(this.simulator);
     this.particles.initVertexBuffer();
     await this.particles.initGroupResource();
 
@@ -173,7 +173,7 @@ class Controller {
   public run() {
 
 		const commandEncoder = device.createCommandEncoder();
-
+    
     // simulate
     for (let i = 0; i < this.simulator.stepCount; i++) // this.simulator.stepCount
     this.simulator.run(commandEncoder);

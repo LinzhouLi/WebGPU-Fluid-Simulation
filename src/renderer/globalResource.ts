@@ -133,6 +133,7 @@ class GlobalResource {
     cameraBufferData.value.set([
       ...this.camera.position.toArray(), 0,
       ...this.camera.matrixWorldInverse.toArray(),
+      ...this.camera.matrixWorld.toArray(),
       ...this.camera.projectionMatrix.toArray()
     ]);
 

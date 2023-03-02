@@ -1,10 +1,11 @@
-import { wgsl } from '../3rd-party/wgsl-preprocessor';
+import { wgsl } from '../../3rd-party/wgsl-preprocessor';
 
 const vertexShader = wgsl/* wgsl */`
 
 struct Camera {
   position: vec3<f32>,
   viewMatrix: mat4x4<f32>,
+  viewMatrixInverse: mat4x4<f32>,
   projectionMatrix: mat4x4<f32>
 };
 
@@ -52,6 +53,7 @@ const fragmentShader = wgsl/* wgsl */`
 struct Camera {
   position: vec3<f32>,
   viewMatrix: mat4x4<f32>,
+  viewMatrixInverse: mat4x4<f32>,
   projectionMatrix: mat4x4<f32>
 };
 

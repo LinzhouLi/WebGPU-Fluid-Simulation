@@ -1,13 +1,13 @@
 import * as THREE from 'three';
-import type { TypedArray } from '../common/base';
-import type { ResourceType, BufferData } from '../common/resourceFactory';
-import { device, canvasFormat } from '../controller';
-import { resourceFactory, vertexBufferFactory } from '../common/base';
-import { ResourceFactory } from '../common/resourceFactory';
-import { LagrangianSimulator } from '../simulator/LagrangianSimulator';
+import type { TypedArray } from '../../common/base';
+import type { ResourceType, BufferData } from '../../common/resourceFactory';
+import { device, canvasFormat } from '../../controller';
+import { resourceFactory, vertexBufferFactory } from '../../common/base';
+import { ResourceFactory } from '../../common/resourceFactory';
+import { LagrangianSimulator } from '../../simulator/LagrangianSimulator';
 import { vertexShader, fragmentShader } from './shader';
 
-class Particles {
+class RawParticles {
 
   private static ResourceFormats = {
     material: {
@@ -46,7 +46,7 @@ class Particles {
   }
 
   public static RegisterResourceFormats() {
-    ResourceFactory.RegisterFormats(Particles.ResourceFormats);
+    ResourceFactory.RegisterFormats(RawParticles.ResourceFormats);
   }
 
   public initVertexBuffer() {
@@ -192,4 +192,4 @@ class Particles {
 
 }
 
-export { Particles };
+export { RawParticles };
