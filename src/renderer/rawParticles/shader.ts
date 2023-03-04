@@ -6,7 +6,8 @@ struct Camera {
   position: vec3<f32>,
   viewMatrix: mat4x4<f32>,
   viewMatrixInverse: mat4x4<f32>,
-  projectionMatrix: mat4x4<f32>
+  projectionMatrix: mat4x4<f32>,
+  params: vec4<f32>
 };
 
 struct Material {
@@ -54,7 +55,8 @@ struct Camera {
   position: vec3<f32>,
   viewMatrix: mat4x4<f32>,
   viewMatrixInverse: mat4x4<f32>,
-  projectionMatrix: mat4x4<f32>
+  projectionMatrix: mat4x4<f32>,
+  params: vec4<f32>
 };
 
 struct DirectionalLight {

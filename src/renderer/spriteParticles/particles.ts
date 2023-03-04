@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { TypedArray } from '../../common/base';
 import type { ResourceType, BufferData } from '../../common/resourceFactory';
-import { device, canvasFormat } from '../../controller';
+import { canvasFormat, device } from '../../controller';
 import { resourceFactory, vertexBufferFactory } from '../../common/base';
 import { ResourceFactory } from '../../common/resourceFactory';
 import { LagrangianSimulator } from '../../simulator/LagrangianSimulator';
@@ -23,8 +23,10 @@ class SpriteParticles {
 
   protected radius: number;
   protected spriteMesh: THREE.Mesh;
-  protected renderPipeline: GPURenderPipeline;
   protected simulator: LagrangianSimulator;
+
+  protected vertexShaderCode: string;
+  protected fragmentShaderCode: string;
 
   protected vertexCount: number;
   protected vertexBufferAttributes: string[]; // resource name
@@ -35,8 +37,15 @@ class SpriteParticles {
   protected resourceCPUData: Record<string, BufferData>; // resource in CPU
   protected resource: Record<string, GPUBuffer | GPUTexture | GPUSampler>; // resource in GPU
 
+  protected vertexBufferLayout: GPUVertexBufferLayout[];
+  protected bindGroupLayout: GPUBindGroupLayout;
+  protected bindGroup: GPUBindGroup;
+  protected renderPipeline: GPURenderPipeline;
+
   constructor(simulator: LagrangianSimulator) {
 
+    this.vertexShaderCode = vertexShader;
+    this.fragmentShaderCode = fragmentShader;
     this.simulator = simulator;
     this.radius = 0.03;
     this.spriteMesh = new THREE.Mesh(
@@ -67,11 +76,14 @@ class SpriteParticles {
       this.vertexCount = this.spriteMesh.geometry.attributes.position.count;
     }
 
+    this.vertexBufferLayout = vertexBufferFactory.createLayout(this.vertexBufferAttributes);
     this.vertexBuffers = vertexBufferFactory.createResource(this.vertexBufferAttributes, this.vertexBufferData);
 
   }
 
-  public async initGroupResource() {
+  public async initGroupResource(
+    globalResource: { [x: string]: GPUBuffer | GPUTexture | GPUSampler }
+  ) {
 
     const material = this.spriteMesh.material as THREE.MeshPhysicalMaterial;
 
@@ -91,16 +103,15 @@ class SpriteParticles {
     this.resource = await resourceFactory.createResource(['material'], this.resourceCPUData);
     this.resource.particlePosition = this.simulator.particlePositionBuffer;
     
+    this.initBindGroup(globalResource);
+    
   }
 
-  public async setRenderBundle(
-    bundleEncoder: GPURenderBundleEncoder,
+  protected initBindGroup(
     globalResource: { [x: string]: GPUBuffer | GPUTexture | GPUSampler }
   ) {
     
-    const vertexLayout = vertexBufferFactory.createLayout(this.vertexBufferAttributes);
-    
-    const bindGroupLayout = device.createBindGroupLayout({
+    this.bindGroupLayout = device.createBindGroupLayout({
       label: 'Particle Rendering Pipeline Bind Group Layout',
       entries: [{ // camera
         binding: 0,
@@ -121,9 +132,9 @@ class SpriteParticles {
       }]
     });
 
-    const bindGroup = device.createBindGroup({
+    this.bindGroup = device.createBindGroup({
       label: 'Particle Rendering Pipeline Bind Group',
-      layout: bindGroupLayout,
+      layout: this.bindGroupLayout,
       entries: [{ // camera
         binding: 0,
         resource: { buffer: globalResource.camera as GPUBuffer },
@@ -138,25 +149,28 @@ class SpriteParticles {
         resource: { buffer: globalResource.directionalLight as GPUBuffer }
       }]
     })
-    
+  }
+
+  public async initPipeline() {
+
     this.renderPipeline = await device.createRenderPipelineAsync({
       label: 'Render Pipeline',
       layout: device.createPipelineLayout({ 
-        bindGroupLayouts: [bindGroupLayout]
+        bindGroupLayouts: [this.bindGroupLayout]
       }),
       vertex: {
-        module: device.createShaderModule({ code: vertexShader }),
+        module: device.createShaderModule({ code: this.vertexShaderCode }),
         entryPoint: 'main',
-        buffers: vertexLayout
+        buffers: this.vertexBufferLayout
       },
       fragment: {
-        module: device.createShaderModule({ code: fragmentShader }),
+        module: device.createShaderModule({ code: this.fragmentShaderCode }),
         entryPoint: 'main',
         targets: [{ format: canvasFormat }],
       },
       primitive: {
         topology: 'triangle-list',
-        cullMode: 'back'
+        cullMode: 'none' // do not need cull
       }, 
       depthStencil: {
         depthWriteEnabled: true,
@@ -164,6 +178,12 @@ class SpriteParticles {
         format: 'depth32float'
       }
     });
+
+  }
+
+  public async setRenderBundle(
+    bundleEncoder: GPURenderBundleEncoder
+  ) {
     
     bundleEncoder.setPipeline(this.renderPipeline);
 
@@ -182,7 +202,7 @@ class SpriteParticles {
     }
 
     // set bind group
-    bundleEncoder.setBindGroup(0, bindGroup);
+    bundleEncoder.setBindGroup(0, this.bindGroup);
 
     // draw
     if (indexed) bundleEncoder.drawIndexed(this.vertexCount, this.simulator.particleCount);

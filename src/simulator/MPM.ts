@@ -36,6 +36,8 @@ class MPM extends LagrangianSimulator {
     },
   };
 
+  private pause: boolean;
+
   private timeStep: number;
   private gridCount: number;
   private gridLength: number;
@@ -62,7 +64,7 @@ class MPM extends LagrangianSimulator {
   constructor() {
 
     const n_grid = 32;
-    super( 9000, 25 );
+    super( 9000, 15 );
 
     this.timeStep = 4e-4;
     this.gridCount = n_grid;
@@ -79,6 +81,7 @@ class MPM extends LagrangianSimulator {
     };
 
     this.gravityArray = new Float32Array(4);
+    this.pause = false;
     
   }
 
@@ -151,6 +154,9 @@ class MPM extends LagrangianSimulator {
       }
       else if (event.key.toUpperCase() === 'E') {
         this.gravityArray.set([0, -9.8, 0, 0]);
+      }
+      else if (event.key.toUpperCase() === ' ') {
+        this.pause = !this.pause;
       }
     });
 
@@ -228,6 +234,8 @@ class MPM extends LagrangianSimulator {
   }
 
   public run(commandEncoder: GPUCommandEncoder) {
+
+    if (this.pause) return;
 
     // clear grid
     commandEncoder.clearBuffer(this.resource.grid as GPUBuffer);

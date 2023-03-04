@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GlobalResource } from './renderer/globalResource';
 import { SpriteParticles } from './renderer/spriteParticles/particles';
+import { ParticleFluid } from './renderer/particleFluid/fluid'
 import { Skybox } from './renderer/skybox';
 import { LagrangianSimulator } from './simulator/LagrangianSimulator';
 import { MPM } from './simulator/MPM';
@@ -24,7 +25,7 @@ THREE.Matrix4.prototype.makePerspective = function ( left, right, top, bottom, n
 	te[ 0 ] = x;	te[ 4 ] = 0;	te[ 8 ] = a;	te[ 12 ] = 0;
 	te[ 1 ] = 0;	te[ 5 ] = y;	te[ 9 ] = b;	te[ 13 ] = 0;
 	te[ 2 ] = 0;	te[ 6 ] = 0;	te[ 10 ] = c;	te[ 14 ] = d;
-	te[ 3 ] = 0;	te[ 7 ] = 0;	te[ 11 ] = - 1;	te[ 15 ] = 0;
+	te[ 3 ] = 0;	te[ 7 ] = 0;	te[ 11 ] = -1;	te[ 15 ] = 0;
 
 	return this;
 
@@ -81,12 +82,13 @@ class Controller {
   private canvas: HTMLCanvasElement;
   private context: GPUCanvasContext;
   private renderBundle: GPURenderBundle;
-  private renderDepthMapView: GPUTextureView;
+  private renderDepthMap: GPUTexture;
   private camera: THREE.PerspectiveCamera;
   public globalResource: GlobalResource;
 
   private skybox: Skybox;
   private particles: SpriteParticles;
+  private fluidRender: ParticleFluid;
   private simulator: LagrangianSimulator;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -96,6 +98,7 @@ class Controller {
   private RegisterResourceFormats() {
     GlobalResource.RegisterResourceFormats();
     SpriteParticles.RegisterResourceFormats();
+    ParticleFluid.RegisterResourceFormats();
     LagrangianSimulator.RegisterResourceFormats();
     MPM._RegisterResourceFormats();
   }
@@ -134,7 +137,7 @@ class Controller {
   }
 
   public async initScene(camera: THREE.PerspectiveCamera, light: THREE.DirectionalLight) {
-
+    
     this.RegisterResourceFormats();
 
     // global resource
@@ -143,7 +146,7 @@ class Controller {
     this.camera.updateProjectionMatrix(); 
     this.globalResource = new GlobalResource(camera, light);
     await this.globalResource.initResource();
-    this.renderDepthMapView = (this.globalResource.resource.renderDepthMap as GPUTexture).createView();
+    this.renderDepthMap = this.globalResource.resource.renderDepthMap as GPUTexture;
 
     // MPM simulator
     this.simulator = new MPM();
@@ -152,20 +155,25 @@ class Controller {
     this.simulator.enableInteraction();
 
     // fluid renderer
-    this.particles = new SpriteParticles(this.simulator);
-    this.particles.initVertexBuffer();
-    await this.particles.initGroupResource();
+    // this.particles = new SpriteParticles(this.simulator);
+    // this.particles.initVertexBuffer();
+    // await this.particles.initGroupResource(this.globalResource.resource);
+    // await this.particles.initPipeline();
+    this.fluidRender = new ParticleFluid(this.simulator);
+    await this.fluidRender.initResource(this.globalResource.resource);
 
     // sky box renderer
     this.skybox = new Skybox();
     this.skybox.initVertexBuffer();
+    await this.skybox.initGroupResource(this.globalResource.resource);
+    await this.skybox.initPipeline();
 
     const renderBundleEncoder = device.createRenderBundleEncoder({
       colorFormats: [ canvasFormat ],
       depthStencilFormat: 'depth32float' // format of renderDepthMap
     });
-    await this.skybox.setRenderBundle(renderBundleEncoder, this.globalResource.resource)
-    await this.particles.setRenderBundle(renderBundleEncoder, this.globalResource.resource);
+    await this.skybox.setRenderBundle(renderBundleEncoder);
+    // await this.particles.setRenderBundle(renderBundleEncoder);
     this.renderBundle = renderBundleEncoder.finish();
 
   }
@@ -179,15 +187,16 @@ class Controller {
     this.simulator.run(commandEncoder);
 
 		// render
+    const ctxTextureView = this.context.getCurrentTexture().createView();
     const renderPassEncoder = commandEncoder.beginRenderPass({
       colorAttachments: [{
-        view: this.context.getCurrentTexture().createView(),
+        view: ctxTextureView,
         clearValue: { r: 0, g: 0, b: 0, a: 0.0 },
         loadOp: 'clear',
         storeOp: 'store'
       }],
       depthStencilAttachment: {
-        view: this.renderDepthMapView,
+        view: this.renderDepthMap.createView(),
         depthClearValue: 0.0,
         depthLoadOp: 'clear',
         depthStoreOp: 'store',
@@ -195,6 +204,8 @@ class Controller {
     });
     renderPassEncoder.executeBundles([this.renderBundle]);
     renderPassEncoder.end();
+
+    this.fluidRender.render(commandEncoder, ctxTextureView);
 
 		const commandBuffer = commandEncoder.finish();
     device.queue.submit([commandBuffer]);

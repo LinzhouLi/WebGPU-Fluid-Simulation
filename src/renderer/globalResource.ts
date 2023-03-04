@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { loader } from '../common/loader';
-import { device, canvasSize } from '../controller';
+import { device, canvasSize, canvasFormat } from '../controller';
 import type { TypedArray } from '../common/base';
 import { resourceFactory, EnvMapResolution } from '../common/base';
 import type { ResourceType, BufferData, TextureData, TextureArrayData } from '../common/resourceFactory';
@@ -36,6 +36,15 @@ class GlobalResource {
         dimension: '2d' as GPUTextureDimension,
         format: 'depth32float' as GPUTextureFormat,
       },
+
+      frameResult: {
+        type: 'texture' as ResourceType,
+        label: 'Render Frame Result',
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+        size: [canvasSize.width, canvasSize.height],
+        dimension: canvasFormat as GPUTextureDimension,
+        format: 'depth32float' as GPUTextureFormat,
+      },
   
       // camera
       camera: {
@@ -59,6 +68,7 @@ class GlobalResource {
         } as GPUBufferBindingLayout
       },
 
+      // sampler
       linearSampler: {
         type: 'sampler' as ResourceType,
         label: 'Linear Sampler',
@@ -70,6 +80,7 @@ class GlobalResource {
         } as GPUSamplerBindingLayout
       }, 
 
+      // env map
       envMap: {
         type: 'cube-texture' as ResourceType,
         label: 'Skybox Map',
@@ -88,9 +99,34 @@ class GlobalResource {
   
     });
   }
+
+
+  private initCameraResource() {
+
+    // camera params. used for functions: linear01Depth(), linearEyeDepth()
+		let height = 2 * this.camera.near * Math.tan( Math.PI / 180 * 0.5 * this.camera.fov ) / this.camera.zoom;
+    let n = this.camera.near; 
+    let f = this.camera.far;
+
+    let paramX = this.camera.aspect * height / n; // width / near
+    let paramY = - height / n; // - height / near
+    let paramZ = (f - n) / (n * f);
+    let paramW = 1.0 / f;
+
+    let cameraBuffer = new Float32Array(4 + 16 * 3 + 4);
+    cameraBuffer.set([ paramX, paramY, paramZ, paramW ], 4 + 16 * 3);
+    console.log([ paramX, paramY, paramZ, paramW ])
+
+    return cameraBuffer;
+
+  }
+
   public async initResource() {
 
-    this.resourceAttributes = [ 'renderDepthMap', 'camera', 'directionalLight', 'envMap', 'linearSampler' ];
+    this.resourceAttributes = [ 
+      'renderDepthMap',
+      'camera', 'directionalLight', 'envMap', 'linearSampler' 
+    ];
 
     const light = this.light as THREE.DirectionalLight;
     // light.position.setFromMatrixPosition(light.matrixWorld);
@@ -106,7 +142,7 @@ class GlobalResource {
     
     this.resourceCPUData = {
       camera: { // update per frame
-        value: new Float32Array((4 + 16 + 16) * 4)
+        value: this.initCameraResource()
       },
       directionalLight: { 
         value: new Float32Array([

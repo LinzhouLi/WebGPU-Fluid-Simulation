@@ -43,7 +43,7 @@ class Main {
 
   async init() {
 
-    const camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
+    const camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 50 );
     camera.position.set( 2, 2, 0 );
     camera.lookAt( 0, 0, 0 );
     new OrbitControls(camera, this.canvas);
