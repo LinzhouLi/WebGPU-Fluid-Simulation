@@ -1,39 +1,5 @@
-import { ShaderStruct } from "../../common/shaderStruct";
-import { ShaderFunction } from "../../common/shaderFunction";
-
-// VertOutput.coord.xy range from (0, 0) to (1, 1). Used as uv sampling coord
-// VertOutput.coord.zw range from (0, 0) to (screenWidth, screenHeight). Used as texture coord for textureLoad()
-
-const vertexShader = /* wgsl */`
-
-override screenWidth: f32;
-override screenHeight: f32;
-
-struct VertOutput {
-  @builtin(position) position: vec4<f32>,
-  @location(0) @interpolate(linear, center) coord: vec4<f32>,
-};
-
-const coords = array<vec2<f32>, 4>(
-  vec2<f32>(-1.0, -1.0), // Bottom Left
-  vec2<f32>( 1.0, -1.0), // Bottom Right
-  vec2<f32>(-1.0,  1.0), // Top Left
-  vec2<f32>( 1.0,  1.0)  // Top Right
-);
-
-@vertex
-fn main(@builtin(vertex_index) index: u32) -> VertOutput {
-  let coord = coords[index];
-  let position = vec4<f32>(coord, 0.0, 1.0);
-  let uv = coord * vec2<f32>(0.5, -0.5) + 0.5; // https://www.w3.org/TR/webgpu/#coordinate-systems
-  let gbufferCoord = vec4<f32>(uv, uv * vec2<f32>(screenWidth, screenHeight));
-  return VertOutput(
-    position, gbufferCoord
-  );
-}
-
-`;
-
+import { ShaderStruct } from "../../../common/shaderStruct";
+import { ShaderFunction } from "../../../common/shaderFunction";
 
 const fragmentShader = /* wgsl */`
 
@@ -51,7 +17,7 @@ struct FragOutput {
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(0) @binding(1) var<uniform> light: DirectionalLight;
 @group(0) @binding(2) var linearSampler: sampler;
-@group(0) @binding(3) var fluidDepthMap: texture_depth_2d;
+@group(0) @binding(3) var fluidDepthMap: texture_2d<f32>;
 @group(0) @binding(4) var fluidVolumeMap: texture_2d<f32>;
 
 ${ShaderFunction.sRGBGammaEncode}
@@ -83,7 +49,7 @@ fn getNormal(uv: vec2<f32>, z: f32) -> vec4<f32> {
 fn main(input: FragInput) -> FragOutput {
 
   let frameCoord = vec2<u32>(floor(input.coord.zw));
-  let z = textureLoad(fluidDepthMap, frameCoord, 0);
+  let z = textureLoad(fluidDepthMap, frameCoord, 0).r;
   if (z < 1e-4) { discard; }
   let fluidVolume = textureSample(fluidVolumeMap, linearSampler, input.coord.xy).r;
   let normalWorld = getNormal(input.coord.xy, z);
@@ -101,4 +67,4 @@ fn main(input: FragInput) -> FragOutput {
 
 `;
 
-export { vertexShader, fragmentShader };
+export { fragmentShader };

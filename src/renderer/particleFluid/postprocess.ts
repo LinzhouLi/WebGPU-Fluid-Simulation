@@ -1,5 +1,6 @@
 import { device, canvasSize, canvasFormat } from '../../controller';
-import { vertexShader, fragmentShader } from './shader';
+import { vertexShader } from './shader/screenVertexShader';
+import { fragmentShader } from './shader/renderPassShader';
 
 class Postprocess {
 
@@ -39,7 +40,7 @@ class Postprocess {
       }, { // fluid depth map
         binding: 3,
         visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'depth' }
+        texture: { sampleType: 'unfilterable-float' }
       }, { // fluid volume map
         binding: 4,
         visibility: GPUShaderStage.FRAGMENT,
@@ -61,7 +62,7 @@ class Postprocess {
         resource: resource.linearSampler as GPUSampler
       }, { // fluid depth map
         binding: 3,
-        resource: (resource.fluidDepthMap as GPUTexture).createView()
+        resource: (resource.fluidDepthStorageMap as GPUTexture).createView()
       }, { // fluid volume map
         binding: 4,
         resource: (resource.fluidVolumeMap as GPUTexture).createView()
@@ -86,7 +87,7 @@ class Postprocess {
         entryPoint: 'main'
       },
       fragment: {
-        module: device.createShaderModule({ label: '1', code: this.fragmentShaderCode }),
+        module: device.createShaderModule({ code: this.fragmentShaderCode }),
         entryPoint: 'main',
         targets: [{ 
           format: canvasFormat,

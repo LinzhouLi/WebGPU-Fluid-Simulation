@@ -1,6 +1,6 @@
-import { ShaderStruct } from "../../common/shaderStruct";
+import { ShaderStruct } from "../../../common/shaderStruct";
 
-const depthPassfragmentShader = /* wgsl */`
+const volumePassfragmentShader = /* wgsl */`
 
 ${ShaderStruct.Camera}
 ${ShaderStruct.DirectionalLight}
@@ -12,7 +12,7 @@ struct FragmentInput {
 };
 
 struct FragmentOutput {
-  @builtin(frag_depth) frag_depth: f32
+  @location(0) volume: f32
 };
 
 @group(0) @binding(0) var<uniform> camera: Camera;
@@ -26,16 +26,13 @@ fn main(input: FragmentInput) -> FragmentOutput {
   var normalCam = vec4<f32>(input.vUv * 2.0 - 1.0, 0.0, 0.0);
   let radius2 = dot(normalCam.xy, normalCam.xy);
   if (radius2 > 1.0) { discard; }
-  normalCam.z = sqrt(1.0 - radius2);
 
-  // caculate depth
-  let fragPosCam = input.vPositionCam + normalCam * material.sphereRadius;
-  let positionClip = camera.projectionMatrix * fragPosCam;
-  let depth = positionClip.z / positionClip.w;
+  // caculate volume // sigma = 0.5
+  let volume = exp(-radius2 * 2.0) * 0.2;
 
-  return FragmentOutput( depth );
+  return FragmentOutput( volume );
 }
 
 `;
 
-export { depthPassfragmentShader }
+export { volumePassfragmentShader };

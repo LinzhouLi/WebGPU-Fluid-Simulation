@@ -1,8 +1,8 @@
 import { device } from '../../controller';
 import { SpriteParticles } from '../spriteParticles/particles';
 import { LagrangianSimulator } from '../../simulator/LagrangianSimulator';
-import { depthPassfragmentShader } from './depthPassShader';
-import { volumePassfragmentShader } from './volumePassShader';
+import { depthPassfragmentShader } from './shader/depthPassShader';
+import { volumePassfragmentShader } from './shader/volumePassShader';
 
 
 class FluidParicles extends SpriteParticles {
