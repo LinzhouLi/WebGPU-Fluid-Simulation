@@ -1,5 +1,5 @@
 import type { ResourceType, BufferData } from '../../common/resourceFactory';
-import { device, canvasFormat, canvasSize } from '../../controller';
+import { canvasSize } from '../../controller';
 import { resourceFactory } from '../../common/base';
 import { ResourceFactory } from '../../common/resourceFactory';
 import { LagrangianSimulator } from '../../simulator/LagrangianSimulator';

@@ -87,7 +87,7 @@ class Controller {
   public globalResource: GlobalResource;
 
   private skybox: Skybox;
-  private particles: SpriteParticles;
+  // private particles: SpriteParticles;
   private fluidRender: ParticleFluid;
   private simulator: LagrangianSimulator;
 

@@ -3,6 +3,7 @@ import {
   vertexBufferFactory,
   bindGroupFactory
 } from '../common/base';
+import { ShaderFunction } from "../common/shaderFunction";
 
 const skyboxVertexShader = /* wgsl */`
 struct Camera {
@@ -33,13 +34,7 @@ const skyboxFragmentShader = /* wgsl */`
 @group(0) @binding(1) var linearSampler: sampler;
 @group(0) @binding(2) var envMap: texture_cube<f32>;
 
-fn sRGBGammaEncode(color: vec3<f32>) -> vec3<f32> {
-  return mix(
-    color.rgb * 12.92,                                    // x <= 0.0031308
-    pow(color.rgb, vec3<f32>(0.41666)) * 1.055 - 0.055,   // x >  0.0031308
-    saturate(sign(color.rgb - 0.0031308))
-  );
-}
+${ShaderFunction.sRGBGammaEncode}
 
 @fragment
 fn main(

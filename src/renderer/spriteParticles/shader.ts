@@ -1,22 +1,11 @@
 import { wgsl } from '../../3rd-party/wgsl-preprocessor';
+import { ShaderStruct } from "../../common/shaderStruct";
+import { ShaderFunction } from "../../common/shaderFunction";
 
 const vertexShader = wgsl/* wgsl */`
 
-struct Camera {
-  position: vec3<f32>,
-  viewMatrix: mat4x4<f32>,
-  viewMatrixInverse: mat4x4<f32>,
-  projectionMatrix: mat4x4<f32>,
-  params: vec4<f32>
-};
-
-struct Material {
-  sphereRadius: f32,
-  metalness: f32,
-  specularIntensity: f32,
-  roughness: f32,
-  color: vec3<f32>
-};
+${ShaderStruct.Camera}
+${ShaderStruct.SphereMaterial}
 
 struct VertexInput {
   @builtin(instance_index) instanceIndex: u32,
@@ -31,7 +20,7 @@ struct VertexOutput {
 };
 
 @group(0) @binding(0) var<uniform> camera: Camera;
-@group(0) @binding(1) var<uniform> material: Material;
+@group(0) @binding(1) var<uniform> material: SphereMaterial;
 @group(0) @binding(2) var<storage> instancePositions: array<vec3<f32>>;
 
 @vertex
@@ -49,26 +38,9 @@ fn main(input: VertexInput) -> VertexOutput {
 
 const fragmentShader = wgsl/* wgsl */`
 
-struct Camera {
-  position: vec3<f32>,
-  viewMatrix: mat4x4<f32>,
-  viewMatrixInverse: mat4x4<f32>,
-  projectionMatrix: mat4x4<f32>,
-  params: vec4<f32>
-};
-
-struct DirectionalLight {
-  direction: vec3<f32>,
-  color: vec3<f32>
-};
-
-struct Material {
-  sphereRadius: f32,
-  metalness: f32,
-  specularIntensity: f32,
-  roughness: f32,
-  color: vec3<f32>
-};
+${ShaderStruct.Camera}
+${ShaderStruct.DirectionalLight}
+${ShaderStruct.SphereMaterial}
 
 struct FragmentInput {
   @location(0) @interpolate(perspective, center) vPositionCam: vec4<f32>,
@@ -81,16 +53,10 @@ struct FragmentOutput {
 };
 
 @group(0) @binding(0) var<uniform> camera: Camera;
-@group(0) @binding(1) var<uniform> material: Material;
+@group(0) @binding(1) var<uniform> material: SphereMaterial;
 @group(0) @binding(3) var<uniform> light: DirectionalLight;
 
-fn sRGBGammaEncode(color: vec3<f32>) -> vec3<f32> {
-  return mix(
-    color.rgb * 12.92,                                    // x <= 0.0031308
-    pow(color.rgb, vec3<f32>(0.41666)) * 1.055 - 0.055,   // x >  0.0031308
-    saturate(sign(color.rgb - 0.0031308))
-  );
-}
+${ShaderFunction.sRGBGammaEncode}
 
 @fragment
 fn main(input: FragmentInput) -> FragmentOutput {
