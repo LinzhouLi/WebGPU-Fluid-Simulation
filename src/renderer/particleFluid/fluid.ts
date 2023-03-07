@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import type { ResourceType, BufferData } from '../../common/resourceFactory';
 import { canvasSize } from '../../controller';
 import { resourceFactory } from '../../common/base';
@@ -12,26 +13,12 @@ class ParticleFluid {
 
   public static RegisterResourceFormats() {
     ResourceFactory.RegisterFormats({
-
-      fluidDepthMap: {
-        type: 'texture' as ResourceType,
-          label: 'Fluid Depth Map',
-          visibility: GPUShaderStage.FRAGMENT,
-          usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-          size: [canvasSize.width, canvasSize.height],
-          dimension: '2d' as GPUTextureDimension,
-          format: 'depth32float' as GPUTextureFormat,
-          layout: {
-            sampleType: 'float' as GPUTextureSampleType,
-            viewDimension: '2d' as GPUTextureViewDimension,
-          } as GPUTextureBindingLayout
-      },
   
-      fluidDepthStorageMap: {
+      fluidDepthMap: {
         type: 'texture' as ResourceType,
           label: 'Fluid Depth Storage Map for Filtering',
           visibility: GPUShaderStage.FRAGMENT,
-          usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+          usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
           size: [canvasSize.width, canvasSize.height],
           dimension: '2d' as GPUTextureDimension,
           format: 'r32float' as GPUTextureFormat,
@@ -58,6 +45,8 @@ class ParticleFluid {
     });
   }
 
+  protected camera: THREE.PerspectiveCamera;
+
   protected fluidParticles: FluidParicles;
   protected textureCopy: TextureCopy;
   protected textureFilter: TextureFilter;
@@ -71,10 +60,13 @@ class ParticleFluid {
   protected particleRenderBundle: GPURenderBundle;
   protected postprocessBundle: GPURenderBundle;
 
-  constructor(simulator: LagrangianSimulator) {
+  constructor(
+    simulator: LagrangianSimulator,
+    camera: THREE.PerspectiveCamera
+  ) {
 
+    this.camera = camera;
     this.fluidParticles = new FluidParicles(simulator);
-    this.textureCopy = new TextureCopy();
     this.textureFilter = new TextureFilter();
     this.postprocess = new Postprocess();
     
@@ -86,7 +78,7 @@ class ParticleFluid {
   ) {
 
     this.renderDepthMap = globalResource.renderDepthMap as GPUTexture;
-    this.resourceAttributes = [ 'fluidDepthMap', 'fluidVolumeMap', 'fluidDepthStorageMap' ];
+    this.resourceAttributes = [ 'fluidDepthMap', 'fluidVolumeMap' ];
     this.resource = await resourceFactory.createResource(this.resourceAttributes, { });
 
     // point sprite render
@@ -95,17 +87,9 @@ class ParticleFluid {
     await this.fluidParticles.initPipeline();
     this.fluidParticles.initRenderBundle();
 
-    // texture copy
-    this.textureCopy.setTexture(
-      this.resource.fluidDepthMap as GPUTexture,
-      this.resource.fluidDepthStorageMap as GPUTexture,
-      [canvasSize.width, canvasSize.height] // texture size
-    );
-    await this.textureCopy.initResource();
-
     // texture filter
     this.textureFilter.setTexture(
-      this.resource.fluidDepthStorageMap as GPUTexture,
+      this.resource.fluidDepthMap as GPUTexture,
       [canvasSize.width, canvasSize.height] // texture size
     );
     this.textureFilter.initBindGroup();
@@ -123,15 +107,14 @@ class ParticleFluid {
     ctxTextureView: GPUTextureView
   ) {
 
+    this.textureFilter.setFilterSize(10);
+
     // render point sprite
     this.fluidParticles.render(
       commandEncoder, 
       this.resource.fluidDepthMap as GPUTexture, 
       this.resource.fluidVolumeMap as GPUTexture
     );
-
-    // texture copy
-    this.textureCopy.execute( commandEncoder );
 
     // texture filter
     this.textureFilter.execute( commandEncoder );

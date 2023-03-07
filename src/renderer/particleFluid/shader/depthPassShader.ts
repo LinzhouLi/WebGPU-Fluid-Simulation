@@ -12,7 +12,8 @@ struct FragmentInput {
 };
 
 struct FragmentOutput {
-  @builtin(frag_depth) frag_depth: f32
+  @builtin(frag_depth) frag_depth: f32,
+  @location(0) depthCam: vec4<f32>
 };
 
 @group(0) @binding(0) var<uniform> camera: Camera;
@@ -29,11 +30,13 @@ fn main(input: FragmentInput) -> FragmentOutput {
   normalCam.z = sqrt(1.0 - radius2);
 
   // caculate depth
-  let fragPosCam = input.vPositionCam + normalCam * material.sphereRadius;
-  let positionClip = camera.projectionMatrix * fragPosCam;
+  let positionCam = input.vPositionCam + normalCam * material.sphereRadius;
+  let positionClip = camera.projectionMatrix * positionCam;
   let depth = positionClip.z / positionClip.w;
+  let depthCam = -positionCam.z / positionCam.w;
 
-  return FragmentOutput( depth );
+  return FragmentOutput( depth, vec4<f32>(depthCam, 0.0, 0.0, 1.0) );
+
 }
 
 `;

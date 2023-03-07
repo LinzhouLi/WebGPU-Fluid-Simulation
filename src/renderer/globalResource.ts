@@ -109,13 +109,12 @@ class GlobalResource {
     let f = this.camera.far;
 
     let paramX = this.camera.aspect * height / n; // width / near
-    let paramY = - height / n; // - height / near
+    let paramY = -height / n; // - height / near
     let paramZ = (f - n) / (n * f);
     let paramW = 1.0 / f;
 
     let cameraBuffer = new Float32Array(4 + 16 * 3 + 4);
     cameraBuffer.set([ paramX, paramY, paramZ, paramW ], 4 + 16 * 3);
-    console.log([ paramX, paramY, paramZ, paramW ])
 
     return cameraBuffer;
 
@@ -129,8 +128,6 @@ class GlobalResource {
     ];
 
     const light = this.light as THREE.DirectionalLight;
-    // light.position.setFromMatrixPosition(light.matrixWorld);
-    // light.target.position.setFromMatrixPosition(light.target.matrixWorld);
     let lightDir = light.position.clone().sub(light.target.position).normalize();
     let lightColor = new THREE.Vector3(...this.light.color.toArray()).setScalar(this.light.intensity);
 

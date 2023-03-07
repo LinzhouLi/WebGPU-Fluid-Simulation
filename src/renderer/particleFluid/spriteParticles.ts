@@ -1,4 +1,4 @@
-import { device } from '../../controller';
+import { device, canvasSize } from '../../controller';
 import { SpriteParticles } from '../spriteParticles/particles';
 import { LagrangianSimulator } from '../../simulator/LagrangianSimulator';
 import { depthPassfragmentShader } from './shader/depthPassShader';
@@ -12,6 +12,8 @@ class FluidParicles extends SpriteParticles {
 
   protected depthRenderBundle: GPURenderBundle;
   protected volumeRenderBundle: GPURenderBundle;
+
+  protected depthStencilMap: GPUTexture;
 
   constructor(simulator: LagrangianSimulator) {
 
@@ -35,7 +37,7 @@ class FluidParicles extends SpriteParticles {
       fragment: {
         module: device.createShaderModule({ code: depthPassfragmentShader }),
         entryPoint: 'main',
-        targets: []
+        targets: [{ format: 'r32float' }]
       },
       primitive: {
         topology: 'triangle-list',
@@ -104,9 +106,16 @@ class FluidParicles extends SpriteParticles {
 
   public initRenderBundle() {
 
+    // depth stencil map
+    this.depthStencilMap = device.createTexture({
+      size: [ canvasSize.width, canvasSize.height ],
+      format: 'depth32float',
+      usage: GPUTextureUsage.RENDER_ATTACHMENT
+    });
+
     // depth pass
     let bundleEncoder = device.createRenderBundleEncoder({
-      colorFormats: [],
+      colorFormats: [ 'r32float' ],
       depthStencilFormat: 'depth32float' // format of depthMap
     });
     this.setRenderCommands(bundleEncoder, this.depthRenderPipeline);
@@ -128,9 +137,14 @@ class FluidParicles extends SpriteParticles {
   ) {
 
     const renderPassEncoder1 = commandEncoder.beginRenderPass({
-      colorAttachments: [],
-      depthStencilAttachment: {
+      colorAttachments: [{
         view: depthMap.createView(),
+        clearValue: { r: 0, g: 0, b: 0, a: 0.0 },
+        loadOp: 'clear',
+        storeOp: 'store'
+      }],
+      depthStencilAttachment: {
+        view: this.depthStencilMap.createView(),
         depthClearValue: 0.0,
         depthLoadOp: 'clear',
         depthStoreOp: 'store',

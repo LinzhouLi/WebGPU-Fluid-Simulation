@@ -14,7 +14,7 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "skipLibCheck": true,
-    "types": ["vite/client", "@webgpu/types", "@types/three"]
+    "types": ["@webgpu/types", "@types/three"]
   },
   "include": ["src"]
 }

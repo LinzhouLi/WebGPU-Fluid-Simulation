@@ -1,4 +1,5 @@
 import { device, canvasSize, canvasFormat } from '../../controller';
+import { bindGroupFactory } from '../../common/base';
 import { vertexShader } from './shader/screenVertexShader';
 import { fragmentShader } from './shader/renderPassShader';
 
@@ -23,51 +24,15 @@ class Postprocess {
     resource: { [x: string]: GPUBuffer | GPUTexture | GPUSampler }
   ) {
 
-    this.bindGroupLayout = device.createBindGroupLayout({
-      label: 'Particle Rendering Pipeline Bind Group Layout',
-      entries: [{ // camera
-        binding: 0,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: 'uniform' }
-      }, { // light
-        binding: 1,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: 'uniform' }
-      }, { // sampler
-        binding: 2,
-        visibility: GPUShaderStage.FRAGMENT,
-        sampler: { type: 'filtering' }
-      }, { // fluid depth map
-        binding: 3,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'unfilterable-float' }
-      }, { // fluid volume map
-        binding: 4,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'float' }
-      }]
-    });
-
-    this.bindGroup = device.createBindGroup({
-      label: 'Particle Rendering Pipeline Bind Group',
-      layout: this.bindGroupLayout,
-      entries: [{ // camera
-        binding: 0,
-        resource: { buffer: resource.camera as GPUBuffer },
-      }, { // light
-        binding: 1,
-        resource: { buffer: resource.directionalLight as GPUBuffer }
-      }, { // sampler
-        binding: 2,
-        resource: resource.linearSampler as GPUSampler
-      }, { // fluid depth map
-        binding: 3,
-        resource: (resource.fluidDepthStorageMap as GPUTexture).createView()
-      }, { // fluid volume map
-        binding: 4,
-        resource: (resource.fluidVolumeMap as GPUTexture).createView()
-      }]
-    });
+    const layout_group = bindGroupFactory.create(
+      [ 
+        'camera', 'directionalLight', 'linearSampler', 
+        'fluidDepthMap', 'fluidVolumeMap', 'envMap'
+      ],
+      resource
+    );
+    this.bindGroupLayout = layout_group.layout;
+    this.bindGroup = layout_group.group;
 
   }
 

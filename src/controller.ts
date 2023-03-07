@@ -159,7 +159,7 @@ class Controller {
     // this.particles.initVertexBuffer();
     // await this.particles.initGroupResource(this.globalResource.resource);
     // await this.particles.initPipeline();
-    this.fluidRender = new ParticleFluid(this.simulator);
+    this.fluidRender = new ParticleFluid(this.simulator, this.camera);
     await this.fluidRender.initResource(this.globalResource.resource);
 
     // sky box renderer

@@ -9,7 +9,7 @@ class TextureFilter {
   protected filterTexture: GPUTexture;
   protected tempTexture: GPUTexture;
 
-  protected filterSize: Uint32Array;
+  protected filterSize: Int32Array;
   protected filterSizeBuffer: GPUBuffer;
 
   protected bindGroupLayout: GPUBindGroupLayout;
@@ -37,6 +37,7 @@ class TextureFilter {
       usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING
     });
 
+    this.filterSize = new Int32Array(1);
     this.filterSizeBuffer = device.createBuffer({
       size: 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM
     })
@@ -52,14 +53,14 @@ class TextureFilter {
     const filterDirBufferX = device.createBuffer(filterDirBufferDescriptor);
     const filterDirBufferY = device.createBuffer(filterDirBufferDescriptor);
 
-    const filterDirDataX = new Float32Array(2);
-    filterDirDataX.set([1, 0])
+    const filterDirDataX = new Int32Array(2);
+    filterDirDataX.set([1, 0]);
     device.queue.writeBuffer(
       filterDirBufferX, 0,
       filterDirDataX, 0
     );
 
-    const filterDirDataY = new Float32Array(2);
+    const filterDirDataY = new Int32Array(2);
     filterDirDataY.set([0, 1]);
     device.queue.writeBuffer(
       filterDirBufferY, 0,
