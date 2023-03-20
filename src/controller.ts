@@ -6,6 +6,8 @@ import { Skybox } from './renderer/skybox';
 import { LagrangianSimulator } from './simulator/LagrangianSimulator';
 import { MPM } from './simulator/MPM';
 
+import { NeighborList } from './simulator/neighbor/neighborList';
+
 
 // console.info( 'THREE.WebGPURenderer: Modified Matrix4.makePerspective() and Matrix4.makeOrtographic() to work with WebGPU, see https://github.com/mrdoob/three.js/issues/20276.' );
 // @ts-ignore
@@ -91,6 +93,8 @@ class Controller {
   private fluidRender: ParticleFluid;
   private simulator: LagrangianSimulator;
 
+  nl: NeighborList;
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
   }
@@ -115,7 +119,9 @@ class Controller {
     adapter.features.forEach(feature => console.log(`Support feature: ${feature}`));
     
     // device
-    device = await adapter.requestDevice(); // "shader-f16" feature is not supported on my laptop
+    device = await adapter.requestDevice({
+      requiredFeatures: [] // 'float32-filterable'
+    }); // "shader-f16" feature is not supported on my laptop
     console.log(device)
     // context
     const context = this.canvas.getContext('webgpu');
@@ -176,41 +182,50 @@ class Controller {
     // await this.particles.setRenderBundle(renderBundleEncoder);
     this.renderBundle = renderBundleEncoder.finish();
 
+    // neighbor debug
+    this.nl = new NeighborList();
+    await this.nl.initResource()
+
   }
 
   public run() {
 
 		const commandEncoder = device.createCommandEncoder();
+
+    const pe = commandEncoder.beginComputePass();
+    this.nl.execute(pe);
+    pe.end();
     
     // simulate
-    for (let i = 0; i < this.simulator.stepCount; i++) // this.simulator.stepCount
-    this.simulator.run(commandEncoder);
+    // for (let i = 0; i < this.simulator.stepCount; i++) // this.simulator.stepCount
+    //   this.simulator.run(commandEncoder);
 
 		// render
-    const ctxTextureView = this.context.getCurrentTexture().createView();
-    const renderPassEncoder = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: ctxTextureView,
-        clearValue: { r: 0, g: 0, b: 0, a: 0.0 },
-        loadOp: 'clear',
-        storeOp: 'store'
-      }],
-      depthStencilAttachment: {
-        view: this.renderDepthMap.createView(),
-        depthClearValue: 0.0,
-        depthLoadOp: 'clear',
-        depthStoreOp: 'store',
-      }
-    });
-    renderPassEncoder.executeBundles([this.renderBundle]);
-    renderPassEncoder.end();
+    // const ctxTextureView = this.context.getCurrentTexture().createView();
+    // const renderPassEncoder = commandEncoder.beginRenderPass({
+    //   colorAttachments: [{
+    //     view: ctxTextureView,
+    //     clearValue: { r: 0, g: 0, b: 0, a: 0.0 },
+    //     loadOp: 'clear',
+    //     storeOp: 'store'
+    //   }],
+    //   depthStencilAttachment: {
+    //     view: this.renderDepthMap.createView(),
+    //     depthClearValue: 0.0,
+    //     depthLoadOp: 'clear',
+    //     depthStoreOp: 'store',
+    //   }
+    // });
+    // renderPassEncoder.executeBundles([this.renderBundle]);
+    // renderPassEncoder.end();
 
-    this.fluidRender.render(commandEncoder, ctxTextureView);
+    // this.fluidRender.render(commandEncoder, ctxTextureView);
 
 		const commandBuffer = commandEncoder.finish();
     device.queue.submit([commandBuffer]);
 
     // this.simulator.debug();
+    this.nl.debug();
 
   }
 

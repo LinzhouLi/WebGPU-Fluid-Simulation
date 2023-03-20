@@ -209,10 +209,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@webgpu/types@npm:^0.1.24":
-  version: 0.1.26
-  resolution: "@webgpu/types@npm:0.1.26"
-  checksum: 1433f5694aa96d086a03149169b0fe55ab6370bf6194eac705fee53402ecbbe2bbf1791f0c3ae5e27bba08623b4fc17ba32be6d508832eb6c51b587a3b233cb9
+"@webgpu/types@npm:^0.1.30":
+  version: 0.1.30
+  resolution: "@webgpu/types@npm:0.1.30"
+  checksum: c07516879c60617214717d63789f4a512004d004e845ed0439449f564fb8b94bd48882d599918e7db26914d584c70aecda25e90a327aabc32e57c90aa818ac06
   languageName: node
   linkType: hard
 
@@ -1316,7 +1316,7 @@ __metadata:
   resolution: "webgpu-simulation@workspace:."
   dependencies:
     "@types/three": ^0.148.0
-    "@webgpu/types": ^0.1.24
+    "@webgpu/types": ^0.1.30
     stats.js: ^0.17.0
     three: ^0.148.0
     typescript: ^4.9.3

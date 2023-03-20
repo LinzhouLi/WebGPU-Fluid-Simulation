@@ -34,7 +34,7 @@ class Main {
       this.controller.run();
 
       this.stats.end();
-      requestAnimationFrame(render);
+      // requestAnimationFrame(render);
     }
 
     render();

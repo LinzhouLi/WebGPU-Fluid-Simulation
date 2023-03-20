@@ -66,7 +66,7 @@ class MPM extends LagrangianSimulator {
     const n_grid = 32;
     super( 9000, 15 );
 
-    this.timeStep = 4e-4;
+    this.timeStep = 0.0008;
     this.gridCount = n_grid;
     this.gridLength = 1 / n_grid;
     this.bound = 3.0;

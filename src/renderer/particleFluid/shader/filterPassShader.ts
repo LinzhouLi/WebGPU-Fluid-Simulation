@@ -25,11 +25,11 @@ fn main(@builtin(global_invocation_id) global_index : vec3<u32>) {
       if (sample_val == 0.0) { continue; }
 
       // spatial domain
-      r = f32(i) / 10.0; // 6.0
+      r = f32(i) * 0.01;
       sample_weight = exp(-r * r);
 
       // range domain;
-      r = (sample_val - val) / 0.5; // 0.1
+      r = (sample_val - val) * 2.0;
       sample_weight = sample_weight * exp(-r * r);
 
       val_sum = val_sum + sample_val * sample_weight;
