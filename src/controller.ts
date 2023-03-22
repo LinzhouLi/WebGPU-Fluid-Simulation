@@ -4,9 +4,8 @@ import { SpriteParticles } from './renderer/spriteParticles/particles';
 import { ParticleFluid } from './renderer/particleFluid/fluid'
 import { Skybox } from './renderer/skybox';
 import { LagrangianSimulator } from './simulator/LagrangianSimulator';
-import { MPM } from './simulator/MPM';
-
-import { NeighborList } from './simulator/neighbor/neighborList';
+// import { MPM } from './simulator/MPM';
+import { PBF } from './simulator/PBF/PBF';
 
 
 // console.info( 'THREE.WebGPURenderer: Modified Matrix4.makePerspective() and Matrix4.makeOrtographic() to work with WebGPU, see https://github.com/mrdoob/three.js/issues/20276.' );
@@ -93,8 +92,6 @@ class Controller {
   private fluidRender: ParticleFluid;
   private simulator: LagrangianSimulator;
 
-  nl: NeighborList;
-
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
   }
@@ -104,7 +101,7 @@ class Controller {
     SpriteParticles.RegisterResourceFormats();
     ParticleFluid.RegisterResourceFormats();
     LagrangianSimulator.RegisterResourceFormats();
-    MPM._RegisterResourceFormats();
+    // MPM._RegisterResourceFormats();
   }
 
   public async initWebGPU() {
@@ -154,8 +151,8 @@ class Controller {
     await this.globalResource.initResource();
     this.renderDepthMap = this.globalResource.resource.renderDepthMap as GPUTexture;
 
-    // MPM simulator
-    this.simulator = new MPM();
+    // PBF simulator
+    this.simulator = new PBF();
     await this.simulator.initResource();
     await this.simulator.initComputePipeline();
     this.simulator.enableInteraction();
@@ -183,22 +180,18 @@ class Controller {
     this.renderBundle = renderBundleEncoder.finish();
 
     // neighbor debug
-    this.nl = new NeighborList();
-    await this.nl.initResource()
+    // this.nl = new NeighborList();
+    // await this.nl.initResource()
 
   }
 
   public run() {
 
 		const commandEncoder = device.createCommandEncoder();
-
-    const pe = commandEncoder.beginComputePass();
-    this.nl.execute(pe);
-    pe.end();
     
     // simulate
-    // for (let i = 0; i < this.simulator.stepCount; i++) // this.simulator.stepCount
-    //   this.simulator.run(commandEncoder);
+    for (let i = 0; i < this.simulator.stepCount; i++) // this.simulator.stepCount
+      this.simulator.run(commandEncoder);
 
 		// render
     // const ctxTextureView = this.context.getCurrentTexture().createView();
@@ -224,8 +217,7 @@ class Controller {
 		const commandBuffer = commandEncoder.finish();
     device.queue.submit([commandBuffer]);
 
-    // this.simulator.debug();
-    this.nl.debug();
+    this.simulator.debug();
 
   }
 

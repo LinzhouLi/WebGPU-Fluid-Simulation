@@ -2,10 +2,11 @@ import { device } from '../../controller';
 import { ScanShaderCode, CopyShaderCode, GathreShaderCode } from './scanShader';
 
 const THREAD_COUNT = 256;
-const DOUBLE_THREAD_COUNT = THREAD_COUNT * 2;
-const MAX_ARRAY_LENGTH = DOUBLE_THREAD_COUNT * DOUBLE_THREAD_COUNT;
 
 class ExclusiveScan {
+
+  public static ARRAY_ALIGNMENT = THREAD_COUNT * 2;
+  public static MAX_ARRAY_LENGTH = ExclusiveScan.ARRAY_ALIGNMENT * ExclusiveScan.ARRAY_ALIGNMENT;
 
   private srcArrayBuffer: GPUBuffer;
   private destArrayBuffer: GPUBuffer;
@@ -20,7 +21,7 @@ class ExclusiveScan {
   private static copyPipeline: GPUComputePipeline;
   private static gatherPipeline: GPUComputePipeline;
 
-  private debugBuffer: GPUBuffer;
+  // private debugBuffer: GPUBuffer;
 
   constructor(
     srcArrayBuffer: GPUBuffer,
@@ -32,10 +33,10 @@ class ExclusiveScan {
     this.destArrayBuffer = destArrayBuffer;
     this.arrayLength = arrayLength;
 
-    if (this.arrayLength % DOUBLE_THREAD_COUNT != 0)
-      throw new Error(`ExclusiveScan Array Length should be a power of ${DOUBLE_THREAD_COUNT}!`);
-    if (this.arrayLength > MAX_ARRAY_LENGTH)
-      throw new Error(`ExclusiveScan Array Length should less than ${MAX_ARRAY_LENGTH}!`);
+    if (this.arrayLength % ExclusiveScan.ARRAY_ALIGNMENT != 0)
+      throw new Error(`ExclusiveScan Array Length should be a power of ${ExclusiveScan.ARRAY_ALIGNMENT}!`);
+    if (this.arrayLength > ExclusiveScan.MAX_ARRAY_LENGTH)
+      throw new Error(`ExclusiveScan Array Length should less than ${ExclusiveScan.MAX_ARRAY_LENGTH}!`);
 
   }
 
@@ -43,19 +44,20 @@ class ExclusiveScan {
 
     // temp array buffer
     const tempBufferDesp = {
-      size: DOUBLE_THREAD_COUNT * Uint32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+      size: ExclusiveScan.ARRAY_ALIGNMENT * Uint32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.STORAGE
     } as GPUBufferDescriptor;
     this.tempSrcArrayBuffer = device.createBuffer(tempBufferDesp);
     this.tempDestArrayBuffer = device.createBuffer(tempBufferDesp);
 
-    this.debugBuffer = device.createBuffer({
-      size: 512 * 512 * Uint32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
-    });
+    // this.debugBuffer = device.createBuffer({
+    //   size: this.arrayLength * Uint32Array.BYTES_PER_ELEMENT,
+    //   usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+    // });
 
     // bind group
     const bindGroupLayout = device.createBindGroupLayout({
+      label: '123',
       entries: [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, 
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
@@ -116,21 +118,22 @@ class ExclusiveScan {
 
   public execute(passEncoder: GPUComputePassEncoder) {
 
-    // scan source array block by block
     passEncoder.setBindGroup(0, this.scan1BindGroup);
+    passEncoder.setBindGroup(1, this.scan2BindGroup);
+
+    // scan source array block by block (first scan)
     passEncoder.setPipeline(ExclusiveScan.scanPipeline);
-    const blockCount = Math.ceil(this.arrayLength / DOUBLE_THREAD_COUNT);
-    console.log(blockCount)
+    const blockCount = Math.ceil(this.arrayLength / ExclusiveScan.ARRAY_ALIGNMENT);
     passEncoder.dispatchWorkgroups( blockCount );
 
     // copy block result
-    passEncoder.setBindGroup(1, this.scan2BindGroup);
     passEncoder.setPipeline(ExclusiveScan.copyPipeline);
     passEncoder.dispatchWorkgroups( Math.ceil(blockCount / THREAD_COUNT) );
 
-    // scan block result in one block
     passEncoder.setBindGroup(0, this.scan2BindGroup);
     passEncoder.setBindGroup(1, this.scan1BindGroup);
+
+    // scan block result in one block (second scan)
     passEncoder.setPipeline(ExclusiveScan.scanPipeline);
     passEncoder.dispatchWorkgroups(1);
 
@@ -142,17 +145,17 @@ class ExclusiveScan {
 
   public async debug() {
 
-    const ce = device.createCommandEncoder();
-    ce.copyBufferToBuffer(
-      this.destArrayBuffer, 0,
-      this.debugBuffer, 0,
-      512*512 * Uint32Array.BYTES_PER_ELEMENT
-    );
-    device.queue.submit([ ce.finish() ]);
-    await this.debugBuffer.mapAsync(GPUMapMode.READ);
-    const buffer = this.debugBuffer.getMappedRange();
-    const array = new Uint32Array(buffer);
-    console.log(array);
+    // const ce = device.createCommandEncoder();
+    // ce.copyBufferToBuffer(
+    //   this.destArrayBuffer, 0,
+    //   this.debugBuffer, 0,
+    //   this.arrayLength * Uint32Array.BYTES_PER_ELEMENT
+    // );
+    // device.queue.submit([ ce.finish() ]);
+    // await this.debugBuffer.mapAsync(GPUMapMode.READ);
+    // const buffer = this.debugBuffer.getMappedRange(0, this.arrayLength * Uint32Array.BYTES_PER_ELEMENT);
+    // const array = new Uint32Array(buffer);
+    // console.log(array);
 
   }
 

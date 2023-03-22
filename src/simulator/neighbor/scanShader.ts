@@ -82,8 +82,8 @@ const STRIDE = 2 * THREAD_COUNT;
 @compute @workgroup_size(THREAD_COUNT, 1, 1)
 fn main ( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let tempScanArrayIndex = global_id.x;
-  let scanArrayIndex = STRIDE * tempScanArrayIndex - 1;
-  // Temp scan pass: Exclusize scan -> Inclusize scan
+  let scanArrayIndex = STRIDE * (tempScanArrayIndex + 1) - 1;
+  // block sum = block exclusive scan result[-1] + block[-1]
   tempScanSource[tempScanArrayIndex] = scanResult[scanArrayIndex] + scanSource[scanArrayIndex];
 }
 `;
