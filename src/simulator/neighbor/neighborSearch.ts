@@ -13,12 +13,9 @@ class NeighborSearch {
   private gridCellCount: number;
   private gridCellCountAlignment: number;
 
-  private particlePosition: GPUBuffer;
-  private neighborList: GPUBuffer;
   private cellParticleCount: GPUBuffer;
   private cellOffset: GPUBuffer;
-  private particleSortIndexSrc: GPUBuffer;
-  private particleSortIndexDest: GPUBuffer;
+  private particleSortIndex: GPUBuffer;
   private gridInfo: GPUBuffer;
   // private debugBuffer: GPUBuffer;
 
@@ -31,8 +28,6 @@ class NeighborSearch {
   private scan: ExclusiveScan;
 
   constructor(
-    particlePosition: GPUBuffer,
-    neighborList: GPUBuffer,
     particleCount: number,
     maxNeighborCount: number,
     searchRadius: number
@@ -41,9 +36,6 @@ class NeighborSearch {
     this.searchRadius = searchRadius;
     this.particleCount = particleCount;
     this.maxNeighborCount = maxNeighborCount;
-
-    this.particlePosition = particlePosition;
-    this.neighborList = neighborList;
 
     this.gridDimension = Math.ceil(1.0 / this.searchRadius);
     this.gridCellCount = Math.pow(this.gridDimension, 3);
@@ -65,13 +57,12 @@ class NeighborSearch {
     this.cellParticleCount = device.createBuffer(cellBufferDesp);
     this.cellOffset = device.createBuffer(cellBufferDesp);
 
-    // particle buffer x2
+    // particle buffer x1
     const particleBufferDesp = {
       size: this.particleCount * Uint32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.STORAGE
     } as GPUBufferDescriptor;
-    this.particleSortIndexSrc = device.createBuffer(particleBufferDesp);
-    this.particleSortIndexDest = device.createBuffer(particleBufferDesp);
+    this.particleSortIndex = device.createBuffer(particleBufferDesp);
 
     // grid info buffer
     this.gridInfo = device.createBuffer({
@@ -92,7 +83,11 @@ class NeighborSearch {
 
   }
 
-  public async initResource() {
+  public async initResource(
+    particlePosition: GPUBuffer, particlePositionSort: GPUBuffer,
+    particleVelocity: GPUBuffer, particleVelocitySort: GPUBuffer,
+    neighborList: GPUBuffer
+  ) {
 
     this.createStorageData();
 
@@ -105,20 +100,24 @@ class NeighborSearch {
         { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
+        { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
       ]
     });
 
     this.bindGroup = device.createBindGroup({
       layout: bindGroupLayout,
       entries: [
-        { binding: 0, resource: { buffer: this.particlePosition } },
-        { binding: 1, resource: { buffer: this.neighborList } },
-        { binding: 2, resource: { buffer: this.cellParticleCount } },
-        { binding: 3, resource: { buffer: this.cellOffset } },
-        { binding: 4, resource: { buffer: this.particleSortIndexSrc } },
-        { binding: 5, resource: { buffer: this.particleSortIndexDest } },
-        { binding: 6, resource: { buffer: this.gridInfo } },
+        { binding: 0, resource: { buffer: particlePosition } },
+        { binding: 1, resource: { buffer: particlePositionSort } },
+        { binding: 2, resource: { buffer: particleVelocity } },
+        { binding: 3, resource: { buffer: particleVelocitySort } },
+        { binding: 4, resource: { buffer: neighborList } },
+        { binding: 5, resource: { buffer: this.cellParticleCount } },
+        { binding: 6, resource: { buffer: this.cellOffset } },
+        { binding: 7, resource: { buffer: this.particleSortIndex } },
+        { binding: 8, resource: { buffer: this.gridInfo } },
       ]
     });
 
