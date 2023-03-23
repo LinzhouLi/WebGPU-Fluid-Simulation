@@ -8,7 +8,6 @@ class NeighborSearch {
 
   private searchRadius: number;
   private particleCount: number;
-  private maxNeighborCount: number;
   private gridDimension: number;
   private gridCellCount: number;
   private gridCellCountAlignment: number;
@@ -29,13 +28,11 @@ class NeighborSearch {
 
   constructor(
     particleCount: number,
-    maxNeighborCount: number,
     searchRadius: number
   ) {
 
     this.searchRadius = searchRadius;
     this.particleCount = particleCount;
-    this.maxNeighborCount = maxNeighborCount;
 
     this.gridDimension = Math.ceil(1.0 / this.searchRadius);
     this.gridCellCount = Math.pow(this.gridDimension, 3);
@@ -85,7 +82,6 @@ class NeighborSearch {
 
   public async initResource(
     particlePosition: GPUBuffer, particlePositionSort: GPUBuffer,
-    particleVelocity: GPUBuffer, particleVelocitySort: GPUBuffer,
     neighborList: GPUBuffer
   ) {
 
@@ -100,9 +96,7 @@ class NeighborSearch {
         { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
+        { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
       ]
     });
 
@@ -111,13 +105,11 @@ class NeighborSearch {
       entries: [
         { binding: 0, resource: { buffer: particlePosition } },
         { binding: 1, resource: { buffer: particlePositionSort } },
-        { binding: 2, resource: { buffer: particleVelocity } },
-        { binding: 3, resource: { buffer: particleVelocitySort } },
-        { binding: 4, resource: { buffer: neighborList } },
-        { binding: 5, resource: { buffer: this.cellParticleCount } },
-        { binding: 6, resource: { buffer: this.cellOffset } },
-        { binding: 7, resource: { buffer: this.particleSortIndex } },
-        { binding: 8, resource: { buffer: this.gridInfo } },
+        { binding: 2, resource: { buffer: neighborList } },
+        { binding: 3, resource: { buffer: this.cellParticleCount } },
+        { binding: 4, resource: { buffer: this.cellOffset } },
+        { binding: 5, resource: { buffer: this.particleSortIndex } },
+        { binding: 6, resource: { buffer: this.gridInfo } },
       ]
     });
 
@@ -150,7 +142,7 @@ class NeighborSearch {
       label: 'Neighbor List Pipeline (Neighbor Search)',
       layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
       compute: {
-        module: device.createShaderModule({ code: NeighborListShader(this.maxNeighborCount) }),
+        module: device.createShaderModule({ code: NeighborListShader }),
         entryPoint: 'main',
         constants: {
           ParticleCount: this.particleCount,

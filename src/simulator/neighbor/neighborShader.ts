@@ -1,3 +1,4 @@
+import { PBFConfig } from '../PBF/PBFConfig';
 
 const GridStruct = /* wgsl */`
 struct Grid {
@@ -20,13 +21,11 @@ ${GridStruct}
 
 @group(0) @binding(0) var<storage, read_write> particlePosition: array<vec3<f32>>;
 @group(0) @binding(1) var<storage, read_write> particlePositionSort: array<vec3<f32>>;
-@group(0) @binding(2) var<storage, read_write> particleVelocity: array<vec3<f32>>;
-@group(0) @binding(3) var<storage, read_write> particleVelocitySort: array<vec3<f32>>;
 
-@group(0) @binding(5) var<storage, read_write> cellParticleCount: array<atomic<u32>>;
-@group(0) @binding(6) var<storage, read_write> cellOffset: array<u32>;
-@group(0) @binding(7) var<storage, read_write> particleSortIndex: array<u32>;
-@group(0) @binding(8) var<uniform> grid: Grid;
+@group(0) @binding(3) var<storage, read_write> cellParticleCount: array<atomic<u32>>;
+@group(0) @binding(4) var<storage, read_write> cellOffset: array<u32>;
+@group(0) @binding(5) var<storage, read_write> particleSortIndex: array<u32>;
+@group(0) @binding(6) var<uniform> grid: Grid;
 
 @compute @workgroup_size(64, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
@@ -46,13 +45,11 @@ ${GridStruct}
 
 @group(0) @binding(0) var<storage, read_write> particlePosition: array<vec3<f32>>;
 @group(0) @binding(1) var<storage, read_write> particlePositionSort: array<vec3<f32>>;
-@group(0) @binding(2) var<storage, read_write> particleVelocity: array<vec3<f32>>;
-@group(0) @binding(3) var<storage, read_write> particleVelocitySort: array<vec3<f32>>;
 
-@group(0) @binding(5) var<storage, read_write> cellParticleCount: array<u32>;
-@group(0) @binding(6) var<storage, read_write> cellOffset: array<u32>;
-@group(0) @binding(7) var<storage, read_write> particleSortIndex: array<u32>;
-@group(0) @binding(8) var<uniform> grid: Grid;
+@group(0) @binding(3) var<storage, read_write> cellParticleCount: array<u32>;
+@group(0) @binding(4) var<storage, read_write> cellOffset: array<u32>;
+@group(0) @binding(5) var<storage, read_write> particleSortIndex: array<u32>;
+@group(0) @binding(6) var<uniform> grid: Grid;
 
 @compute @workgroup_size(64, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
@@ -63,7 +60,6 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let cellIndex = dot(cellCoord, grid.coord2index);
   let sortIndex = particleSortIndex[particleIndex] + cellOffset[cellIndex];
   particlePositionSort[sortIndex] = position;
-  particleVelocitySort[sortIndex] = particleVelocity[particleIndex];
   return;
 }
 `;
@@ -95,20 +91,19 @@ const NeighborSearch = /* wgsl */`
 `;
 
 
-function NeighborListShader(maxNeighborCount: number) {
-  return /* wgsl */`
+const NeighborListShader = /* wgsl */`
 override ParticleCount: u32;
 override SearchRadiusSqr: f32;
-const MaxNeighborCount: u32 = ${maxNeighborCount};
+const MaxNeighborCount: u32 = ${PBFConfig.MAX_NEIGHBOR_COUNT};
 ${GridStruct}
 ${NeighborStruct}
 
 @group(0) @binding(1) var<storage, read_write> particlePositionSort: array<vec3<f32>>;
-@group(0) @binding(4) var<storage, read_write> neighborList: array<Neighbor>;
+@group(0) @binding(2) var<storage, read_write> neighborList: array<Neighbor>;
 
-@group(0) @binding(5) var<storage, read_write> cellParticleCount: array<u32>;
-@group(0) @binding(6) var<storage, read_write> cellOffset: array<u32>;
-@group(0) @binding(8) var<uniform> grid: Grid;
+@group(0) @binding(3) var<storage, read_write> cellParticleCount: array<u32>;
+@group(0) @binding(4) var<storage, read_write> cellOffset: array<u32>;
+@group(0) @binding(6) var<uniform> grid: Grid;
 
 @compute @workgroup_size(64, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
@@ -162,6 +157,5 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   return;
 }
 `;
-}
 
 export { ParticleInsertShader, CountingSortShader, NeighborListShader };
