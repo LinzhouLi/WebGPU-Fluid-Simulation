@@ -194,30 +194,30 @@ class Controller {
       this.simulator.run(commandEncoder);
 
 		// render
-    // const ctxTextureView = this.context.getCurrentTexture().createView();
-    // const renderPassEncoder = commandEncoder.beginRenderPass({
-    //   colorAttachments: [{
-    //     view: ctxTextureView,
-    //     clearValue: { r: 0, g: 0, b: 0, a: 0.0 },
-    //     loadOp: 'clear',
-    //     storeOp: 'store'
-    //   }],
-    //   depthStencilAttachment: {
-    //     view: this.renderDepthMap.createView(),
-    //     depthClearValue: 0.0,
-    //     depthLoadOp: 'clear',
-    //     depthStoreOp: 'store',
-    //   }
-    // });
-    // renderPassEncoder.executeBundles([this.renderBundle]);
-    // renderPassEncoder.end();
+    const ctxTextureView = this.context.getCurrentTexture().createView();
+    const renderPassEncoder = commandEncoder.beginRenderPass({
+      colorAttachments: [{
+        view: ctxTextureView,
+        clearValue: { r: 0, g: 0, b: 0, a: 0.0 },
+        loadOp: 'clear',
+        storeOp: 'store'
+      }],
+      depthStencilAttachment: {
+        view: this.renderDepthMap.createView(),
+        depthClearValue: 0.0,
+        depthLoadOp: 'clear',
+        depthStoreOp: 'store',
+      }
+    });
+    renderPassEncoder.executeBundles([this.renderBundle]);
+    renderPassEncoder.end();
 
-    // this.fluidRender.render(commandEncoder, ctxTextureView);
+    this.fluidRender.render(commandEncoder, ctxTextureView);
 
 		const commandBuffer = commandEncoder.finish();
     device.queue.submit([commandBuffer]);
-
-    // this.simulator.debug();
+    
+    this.simulator.debug();
 
   }
 

@@ -129,7 +129,9 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
 
   let grad_Pi_Ci_2 = dot(grad_Pi_Ci, grad_Pi_Ci);
   let constrain = max(0.0, density * InvRestDensity - 1.0);
-  lambda[particleIndex] = -constrain / (grad_Pi_Ci_2 + sum_grad_Pj_Ci_2 + LambdaEPS);
+  lambda[particleIndex] = f32(neighborCount);
+  let t = LambdaEPS;
+  // lambda[particleIndex] = -constrain / (grad_Pi_Ci_2 + sum_grad_Pj_Ci_2 + LambdaEPS);
   return;
 }
 `;

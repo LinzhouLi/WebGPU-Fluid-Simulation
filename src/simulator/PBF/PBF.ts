@@ -24,14 +24,12 @@ class PBF extends PBFConfig {
 
   private neighborList: GPUBuffer;
   private positionPredict: GPUBuffer;
-  private positionPredictCopy: GPUBuffer;
+  // private positionPredictCopy: GPUBuffer;
   private deltaPosition: GPUBuffer;
   private lambda: GPUBuffer;
   private velocity: GPUBuffer;
   private velocityCopy: GPUBuffer;
   private gravity: GPUBuffer;
-  // private debugBuffer: GPUBuffer;
-  // private debugBuffer2: GPUBuffer;
 
   private advectionBindGroupLayout: GPUBindGroupLayout;
   private constrainBindGroupLayout: GPUBindGroupLayout;
@@ -50,6 +48,9 @@ class PBF extends PBFConfig {
   private neighborSearch: NeighborSearch;
 
   private gravityArray: Float32Array;
+
+  private debugBuffer1: GPUBuffer;
+  // private debugBuffer2: GPUBuffer;
 
   constructor() {
 
@@ -110,7 +111,7 @@ class PBF extends PBFConfig {
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
     } as GPUBufferDescriptor;
     this.positionPredict = device.createBuffer(attributeBufferDesp);
-    this.positionPredictCopy = device.createBuffer(attributeBufferDesp);
+    // this.positionPredictCopy = device.createBuffer(attributeBufferDesp);
     this.deltaPosition = device.createBuffer(attributeBufferDesp);
     this.velocity = device.createBuffer(attributeBufferDesp);
     this.velocityCopy = device.createBuffer(attributeBufferDesp);
@@ -133,10 +134,10 @@ class PBF extends PBFConfig {
       this.gravityArray, 0
     );
 
-    // this.debugBuffer = device.createBuffer({
-    //   size: (PBF.MAX_NEIGHBOR_COUNT + 1) * this.particleCount * Uint32Array.BYTES_PER_ELEMENT,
-    //   usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
-    // });
+    this.debugBuffer1 = device.createBuffer({
+      size: this.particleCount * Float32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+    });
     // this.debugBuffer2 = device.createBuffer({
     //   size: 4 * this.particleCount * Uint32Array.BYTES_PER_ELEMENT,
     //   usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
@@ -179,7 +180,7 @@ class PBF extends PBFConfig {
     this.constrainBindGroup = device.createBindGroup({
       layout: this.constrainBindGroupLayout,
       entries: [
-        { binding: 0, resource: { buffer: this.positionPredictCopy } },
+        { binding: 0, resource: { buffer: this.positionPredict } },
         { binding: 1, resource: { buffer: this.deltaPosition } },
         { binding: 2, resource: { buffer: this.lambda } },
         { binding: 3, resource: { buffer: this.neighborList } },
@@ -201,7 +202,7 @@ class PBF extends PBFConfig {
       layout: this.viscosityBindGroupLayout,
       entries: [
         { binding: 0, resource: { buffer: this.particlePositionBuffer } },
-        { binding: 1, resource: { buffer: this.positionPredictCopy } },
+        { binding: 1, resource: { buffer: this.positionPredict } },
         { binding: 2, resource: { buffer: this.velocity } },
         { binding: 3, resource: { buffer: this.velocityCopy } },
         { binding: 4, resource: { buffer: this.neighborList } },
@@ -221,7 +222,7 @@ class PBF extends PBFConfig {
       PBF.KERNEL_RADIUS
     );
     await this.neighborSearch.initResource(
-      this.positionPredict,  this.positionPredictCopy,
+      this.positionPredict,  // this.positionPredictCopy,
       this.neighborList
     );
 
@@ -346,23 +347,23 @@ class PBF extends PBFConfig {
     this.neighborSearch.execute(passEncoder);
 
     passEncoder.setBindGroup(0, this.constrainBindGroup);
-    for (let i = 0; i < this.constrainIterationCount; i++) {
+    for (let i = 0; i < 1; i++) {
       passEncoder.setPipeline(this.lambdaCalculationPipeline);
       passEncoder.dispatchWorkgroups(workgroupCount);
 
-      passEncoder.setPipeline(this.constrainSolvePipeline);
-      passEncoder.dispatchWorkgroups(workgroupCount);
+      // passEncoder.setPipeline(this.constrainSolvePipeline);
+      // passEncoder.dispatchWorkgroups(workgroupCount);
 
-      passEncoder.setPipeline(this.constrainApplyPipeline);
-      passEncoder.dispatchWorkgroups(workgroupCount);
+      // passEncoder.setPipeline(this.constrainApplyPipeline);
+      // passEncoder.dispatchWorkgroups(workgroupCount);
     }
 
-    passEncoder.setBindGroup(0, this.viscosityBindGroup);
-    passEncoder.setPipeline(this.attributeUpdatePipeline);
-    passEncoder.dispatchWorkgroups(workgroupCount);
+    // passEncoder.setBindGroup(0, this.viscosityBindGroup);
+    // passEncoder.setPipeline(this.attributeUpdatePipeline);
+    // passEncoder.dispatchWorkgroups(workgroupCount);
 
-    passEncoder.setPipeline(this.XSPHPipeline);
-    passEncoder.dispatchWorkgroups(workgroupCount);
+    // passEncoder.setPipeline(this.XSPHPipeline);
+    // passEncoder.dispatchWorkgroups(workgroupCount);
 
     passEncoder.end();
 
@@ -372,45 +373,19 @@ class PBF extends PBFConfig {
 
   public async debug() {
 
-    // const ce1 = device.createCommandEncoder();
-    // ce1.copyBufferToBuffer(
-    //   this.neighborList, 0,
-    //   this.debugBuffer, 0,
-    //   (PBF.MAX_NEIGHBOR_COUNT + 1) * this.particleCount * Uint32Array.BYTES_PER_ELEMENT
-    // );
-    // device.queue.submit([ ce1.finish() ]);
-    // await this.debugBuffer.mapAsync(GPUMapMode.READ);
-    // const buffer1 = this.debugBuffer.getMappedRange();
-    // const neighborListArray = new Uint32Array(buffer1);
-    // console.log(neighborListArray);
+    const ce = device.createCommandEncoder();
+    ce.copyBufferToBuffer(
+      this.lambda, 0,
+      this.debugBuffer1, 0,
+      this.particleCount * Float32Array.BYTES_PER_ELEMENT
+    );
+    device.queue.submit([ ce.finish() ]);
+    await this.debugBuffer1.mapAsync(GPUMapMode.READ);
+    const buffer1 = this.debugBuffer1.getMappedRange(0, this.particleCount * Float32Array.BYTES_PER_ELEMENT);
+    const neighborListArray = new Float32Array(buffer1);
+    console.log(neighborListArray);
 
-    // const ce2 = device.createCommandEncoder();
-    // ce2.copyBufferToBuffer(
-    //   this.positionCopy, 0,
-    //   this.debugBuffer2, 0,
-    //   4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT
-    // );
-    // device.queue.submit([ ce2.finish() ]);
-    // await this.debugBuffer2.mapAsync(GPUMapMode.READ);
-    // const buffer2 = this.debugBuffer2.getMappedRange(0, 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT);
-    // const positionArray = new Float32Array(buffer2);
-    // console.log(positionArray);
 
-    // let neighbors = [];
-    // let k = (20 * 40 * 40 + 20 * 40 + 20);
-    // let pos = [positionArray[4*k], positionArray[4*k+1], positionArray[4*k+2]];
-    // for (let i = 0; i < this.particleCount; i++) {
-    //   let npos = [
-    //     positionArray[4*i] - pos[0], 
-    //     positionArray[4*i+1] - pos[1], 
-    //     positionArray[4*i+2] - pos[2]
-    //   ];
-    //   if (npos[0]*npos[0] + npos[1]*npos[1] + npos[2]*npos[2] < this.kernelRadius*this.kernelRadius) {
-    //     neighbors.push(i)
-    //   }
-    // }
-    // console.log(neighborListArray.slice(k*48, (k+1)* 48));
-    // console.log(neighbors);
 
     await this.neighborSearch.debug();
 

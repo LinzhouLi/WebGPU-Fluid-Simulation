@@ -6,7 +6,7 @@ abstract class PBFConfig extends LagrangianSimulator {
   static KERNEL_RADIUS = 0.025;
 
   protected constrainIterationCount = 4;
-  protected timeStep = 1 / 30;
+  protected timeStep = 1 / 300;
   protected lambdaEPS = 100.0;
   protected scorrCoefK = 0.001;
   protected scorrCoefDq = 0.3; // [0.1, 0.3]

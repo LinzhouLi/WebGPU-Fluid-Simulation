@@ -20,11 +20,11 @@ override ParticleCount: u32;
 ${GridStruct}
 
 @group(0) @binding(0) var<storage, read_write> particlePosition: array<vec3<f32>>;
-@group(0) @binding(1) var<storage, read_write> particlePositionSort: array<vec3<f32>>;
+// @group(0) @binding(1) var<storage, read_write> particlePositionSort: array<vec3<f32>>;
 
-@group(0) @binding(3) var<storage, read_write> cellParticleCount: array<atomic<u32>>;
-@group(0) @binding(4) var<storage, read_write> cellOffset: array<u32>;
-@group(0) @binding(5) var<storage, read_write> particleSortIndex: array<u32>;
+@group(0) @binding(2) var<storage, read_write> cellParticleCount: array<atomic<u32>>;
+@group(0) @binding(3) var<storage, read_write> cellOffset: array<u32>;
+@group(0) @binding(4) var<storage, read_write> particleSortIndex: array<u32>;
 @group(0) @binding(6) var<uniform> grid: Grid;
 
 @compute @workgroup_size(64, 1, 1)
@@ -44,11 +44,12 @@ override ParticleCount: u32;
 ${GridStruct}
 
 @group(0) @binding(0) var<storage, read_write> particlePosition: array<vec3<f32>>;
-@group(0) @binding(1) var<storage, read_write> particlePositionSort: array<vec3<f32>>;
+// @group(0) @binding(1) var<storage, read_write> particlePositionSort: array<vec3<f32>>;
 
-@group(0) @binding(3) var<storage, read_write> cellParticleCount: array<u32>;
-@group(0) @binding(4) var<storage, read_write> cellOffset: array<u32>;
-@group(0) @binding(5) var<storage, read_write> particleSortIndex: array<u32>;
+@group(0) @binding(2) var<storage, read_write> cellParticleCount: array<u32>;
+@group(0) @binding(3) var<storage, read_write> cellOffset: array<u32>;
+@group(0) @binding(4) var<storage, read_write> particleSortIndex: array<u32>;
+@group(0) @binding(5) var<storage, read_write> particleSortIndexCopy: array<u32>;
 @group(0) @binding(6) var<uniform> grid: Grid;
 
 @compute @workgroup_size(64, 1, 1)
@@ -59,7 +60,8 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let cellCoord = vec3<u32>(floor(position * vec3<f32>(grid.dimension)));
   let cellIndex = dot(cellCoord, grid.coord2index);
   let sortIndex = particleSortIndex[particleIndex] + cellOffset[cellIndex];
-  particlePositionSort[sortIndex] = position;
+  // particlePositionSort[sortIndex] = position;
+  particleSortIndexCopy[sortIndex] = particleIndex;
   return;
 }
 `;
@@ -76,12 +78,16 @@ const NeighborSearch = /* wgsl */`
       nCellParticleIdx < nCellParticleCount;
       nCellParticleIdx++
     ) {
-      positionDelta = particlePositionSort[nParticleIdxSort] - sParticlePosition;
+      nParticleIdx = particleSortIndexCopy[nParticleIdxSort];
+      positionDelta = particlePosition[nParticleIdx] - sParticlePosition;
       if (dot(positionDelta, positionDelta) <= SearchRadiusSqr) { // within search radius
-        neighborList[particleIndex].particleIndex[neighborCount] = nParticleIdxSort;
+        // neighbor.particleIndex[neighborCount] = nParticleIdx;
+        neighborList[nParticleIdx].particleIndex[neighborCount] = nParticleIdx;
         neighborCount++;
         if (neighborCount > MaxNeighborCount) {
-          neighborList[particleIndex].count = MaxNeighborCount;
+          // neighbor.count = MaxNeighborCount;
+          // neighborList[particleIndex] = neighbor;
+          neighborList[nParticleIdx].count = MaxNeighborCount;
           return;
         }
       }
@@ -98,11 +104,12 @@ const MaxNeighborCount: u32 = ${PBFConfig.MAX_NEIGHBOR_COUNT};
 ${GridStruct}
 ${NeighborStruct}
 
-@group(0) @binding(1) var<storage, read_write> particlePositionSort: array<vec3<f32>>;
-@group(0) @binding(2) var<storage, read_write> neighborList: array<Neighbor>;
+@group(0) @binding(0) var<storage, read_write> particlePosition: array<vec3<f32>>;
+@group(0) @binding(1) var<storage, read_write> neighborList: array<Neighbor>;
 
-@group(0) @binding(3) var<storage, read_write> cellParticleCount: array<u32>;
-@group(0) @binding(4) var<storage, read_write> cellOffset: array<u32>;
+@group(0) @binding(2) var<storage, read_write> cellParticleCount: array<u32>;
+@group(0) @binding(3) var<storage, read_write> cellOffset: array<u32>;
+@group(0) @binding(5) var<storage, read_write> particleSortIndexCopy: array<u32>;
 @group(0) @binding(6) var<uniform> grid: Grid;
 
 @compute @workgroup_size(64, 1, 1)
@@ -112,13 +119,15 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
 
   let GridDim = vec3<i32>(grid.dimension);
   let GridCoord2Index = vec3<i32>(grid.coord2index);
-  let sParticlePosition = particlePositionSort[particleIndex];
+  let sParticlePosition = particlePosition[particleIndex];
   let cellCoord = vec3<i32>(floor(sParticlePosition * vec3<f32>(grid.dimension)));
 
+  // var neighbor = Neighbor();
   var nCoord = vec3<i32>();         // neighbor cell coord(3d)
   var nCellIdx = i32();             // neighbor cell index(1d)
   var nCellParticleIdx = u32();     // particle index in a grid cell
   var nCellParticleCount = u32();   // particle count in a grid cell
+  var nParticleIdx = u32();         // original index of a neighbor particle
   var nParticleIdxSort = u32();     // sorted index of a neighbor particle
   var positionDelta = vec3<f32>();  // position difference between this particle and a neighbor particle
   var neighborCount = u32();        // neighbor particle count
@@ -153,7 +162,8 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   nCoord.x =  1; nCoord.y =  1; nCoord.z =  0; ${NeighborSearch}
   nCoord.x =  1; nCoord.y =  1; nCoord.z =  1; ${NeighborSearch}
 
-  neighborList[particleIndex].count = neighborCount;
+  // neighborList[particleIndex] = neighbor;
+  neighborList[nParticleIdx].count = neighborCount;
   return;
 }
 `;

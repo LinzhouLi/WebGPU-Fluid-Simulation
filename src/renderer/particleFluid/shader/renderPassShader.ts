@@ -103,8 +103,8 @@ fn main(input: FragInput) -> FragOutput {
   let color = shading(normalEye, positionEye, fluidVolume);
 
   return FragOutput(
-    // vec4<f32>(sRGBGammaEncode(color), 1.0),
-    vec4<f32>(vec3<f32>(fluidVolume), 1.0)
+    vec4<f32>(sRGBGammaEncode(color), 1.0),
+    // vec4<f32>(vec3<f32>(fluidVolume), 1.0)
   );
 
 }

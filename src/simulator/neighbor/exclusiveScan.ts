@@ -21,7 +21,8 @@ class ExclusiveScan {
   private static copyPipeline: GPUComputePipeline;
   private static gatherPipeline: GPUComputePipeline;
 
-  // private debugBuffer: GPUBuffer;
+  // private debugBuffer1: GPUBuffer;
+  // private debugBuffer2: GPUBuffer;
 
   constructor(
     srcArrayBuffer: GPUBuffer,
@@ -50,7 +51,11 @@ class ExclusiveScan {
     this.tempSrcArrayBuffer = device.createBuffer(tempBufferDesp);
     this.tempDestArrayBuffer = device.createBuffer(tempBufferDesp);
 
-    // this.debugBuffer = device.createBuffer({
+    // this.debugBuffer1 = device.createBuffer({
+    //   size: this.arrayLength * Uint32Array.BYTES_PER_ELEMENT,
+    //   usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+    // });
+    // this.debugBuffer2 = device.createBuffer({
     //   size: this.arrayLength * Uint32Array.BYTES_PER_ELEMENT,
     //   usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
     // });
@@ -147,15 +152,32 @@ class ExclusiveScan {
 
     // const ce = device.createCommandEncoder();
     // ce.copyBufferToBuffer(
+    //   this.srcArrayBuffer, 0,
+    //   this.debugBuffer1, 0,
+    //   this.arrayLength * Uint32Array.BYTES_PER_ELEMENT
+    // );
+    // ce.copyBufferToBuffer(
     //   this.destArrayBuffer, 0,
-    //   this.debugBuffer, 0,
+    //   this.debugBuffer2, 0,
     //   this.arrayLength * Uint32Array.BYTES_PER_ELEMENT
     // );
     // device.queue.submit([ ce.finish() ]);
-    // await this.debugBuffer.mapAsync(GPUMapMode.READ);
-    // const buffer = this.debugBuffer.getMappedRange(0, this.arrayLength * Uint32Array.BYTES_PER_ELEMENT);
-    // const array = new Uint32Array(buffer);
-    // console.log(array);
+    // await this.debugBuffer1.mapAsync(GPUMapMode.READ);
+    // const buffer1 = this.debugBuffer1.getMappedRange(0, this.arrayLength * Uint32Array.BYTES_PER_ELEMENT);
+    // const arraySrc = new Uint32Array(buffer1);
+
+    // await this.debugBuffer2.mapAsync(GPUMapMode.READ);
+    // const buffer2 = this.debugBuffer2.getMappedRange(0, this.arrayLength * Uint32Array.BYTES_PER_ELEMENT);
+    // const arrayDest = new Uint32Array(buffer2);
+    
+    // // scan
+    // let sum = 0;
+    // let right = true;
+    // arraySrc.forEach((val, index) => {
+    //   if (sum !== arrayDest[index])  right = false;
+    //   sum += val;
+    // });
+    // console.log(right);
 
   }
 

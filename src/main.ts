@@ -29,7 +29,7 @@ class Main {
     
     const render = () => {
       this.stats.begin();
-
+      
       this.controller.update();
       this.controller.run();
 
