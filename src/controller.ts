@@ -216,8 +216,12 @@ class Controller {
 
 		const commandBuffer = commandEncoder.finish();
     device.queue.submit([commandBuffer]);
-    
-    this.simulator.debug();
+
+  }
+
+  public async debug() {
+
+    await this.simulator.debug();
 
   }
 

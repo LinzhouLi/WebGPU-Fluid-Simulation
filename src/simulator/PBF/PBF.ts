@@ -49,18 +49,19 @@ class PBF extends PBFConfig {
 
   private gravityArray: Float32Array;
 
+  private tempBuffer: GPUBuffer;
   private debugBuffer1: GPUBuffer;
-  // private debugBuffer2: GPUBuffer;
+  private debugBuffer2: GPUBuffer;
 
   constructor() {
 
-    super(40 * 40 * 40);
+    super(25 * 25 * 25);
 
   }
 
   private createStorageData() {
 
-    const particlePerDim = 40;
+    const particlePerDim = 25;
     const range = 0.5;
     this.restDensity = this.particleCount / (range * range * range);
 
@@ -85,7 +86,7 @@ class PBF extends PBFConfig {
     );
 
     let density = 0;
-    let k = (20 * 40 * 40 + 20 * 40 + 20);
+    let k = (10 * particlePerDim * particlePerDim + 10 * particlePerDim + 10);
     let pos = [positionArray[4*k], positionArray[4*k+1], positionArray[4*k+2]];
     for (let i = 0; i < this.particleCount; i++) {
       let npos = [
@@ -134,14 +135,18 @@ class PBF extends PBFConfig {
       this.gravityArray, 0
     );
 
-    this.debugBuffer1 = device.createBuffer({
+    this.tempBuffer = device.createBuffer({
       size: this.particleCount * Float32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+    });
+    this.debugBuffer1 = device.createBuffer({
+      size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
     });
-    // this.debugBuffer2 = device.createBuffer({
-    //   size: 4 * this.particleCount * Uint32Array.BYTES_PER_ELEMENT,
-    //   usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
-    // });
+    this.debugBuffer2 = device.createBuffer({
+      size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+    });
 
   }
 
@@ -174,6 +179,7 @@ class PBF extends PBFConfig {
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // !!!
       ]
     });
 
@@ -184,6 +190,7 @@ class PBF extends PBFConfig {
         { binding: 1, resource: { buffer: this.deltaPosition } },
         { binding: 2, resource: { buffer: this.lambda } },
         { binding: 3, resource: { buffer: this.neighborList } },
+        { binding: 4, resource: { buffer: this.tempBuffer } },
       ]
     });
 
@@ -269,6 +276,7 @@ class PBF extends PBFConfig {
         constants: {
           ParticleCount: this.particleCount,
           InvRestDensity: 1 / this.restDensity,
+          InvRestDensity2: 1 / (this.restDensity * this.restDensity),
           LambdaEPS: this.lambdaEPS
         }
       }
@@ -337,6 +345,8 @@ class PBF extends PBFConfig {
 
   public run(commandEncoder: GPUCommandEncoder) {
 
+    this.neighborSearch.clearBuffer(commandEncoder);
+    
     const passEncoder = commandEncoder.beginComputePass();
     const workgroupCount = Math.ceil(this.particleCount / 64);
 
@@ -347,26 +357,26 @@ class PBF extends PBFConfig {
     this.neighborSearch.execute(passEncoder);
 
     passEncoder.setBindGroup(0, this.constrainBindGroup);
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < this.constrainIterationCount; i++) {
       passEncoder.setPipeline(this.lambdaCalculationPipeline);
       passEncoder.dispatchWorkgroups(workgroupCount);
 
-      // passEncoder.setPipeline(this.constrainSolvePipeline);
-      // passEncoder.dispatchWorkgroups(workgroupCount);
+      passEncoder.setPipeline(this.constrainSolvePipeline);
+      passEncoder.dispatchWorkgroups(workgroupCount);
 
-      // passEncoder.setPipeline(this.constrainApplyPipeline);
-      // passEncoder.dispatchWorkgroups(workgroupCount);
+      passEncoder.setPipeline(this.constrainApplyPipeline);
+      passEncoder.dispatchWorkgroups(workgroupCount);
     }
 
-    // passEncoder.setBindGroup(0, this.viscosityBindGroup);
-    // passEncoder.setPipeline(this.attributeUpdatePipeline);
-    // passEncoder.dispatchWorkgroups(workgroupCount);
+    passEncoder.setBindGroup(0, this.viscosityBindGroup);
+    passEncoder.setPipeline(this.attributeUpdatePipeline);
+    passEncoder.dispatchWorkgroups(workgroupCount);
 
-    // passEncoder.setPipeline(this.XSPHPipeline);
-    // passEncoder.dispatchWorkgroups(workgroupCount);
+    passEncoder.setPipeline(this.XSPHPipeline);
+    passEncoder.dispatchWorkgroups(workgroupCount);
 
     passEncoder.end();
-
+  
   }
 
   public update() { }
@@ -379,13 +389,38 @@ class PBF extends PBFConfig {
       this.debugBuffer1, 0,
       this.particleCount * Float32Array.BYTES_PER_ELEMENT
     );
+    ce.copyBufferToBuffer(
+      this.tempBuffer, 0,
+      this.debugBuffer2, 0,
+      this.particleCount * Float32Array.BYTES_PER_ELEMENT
+    );
     device.queue.submit([ ce.finish() ]);
+
     await this.debugBuffer1.mapAsync(GPUMapMode.READ);
     const buffer1 = this.debugBuffer1.getMappedRange(0, this.particleCount * Float32Array.BYTES_PER_ELEMENT);
-    const neighborListArray = new Float32Array(buffer1);
-    console.log(neighborListArray);
+    const array1 = new Float32Array(buffer1);
 
+    await this.debugBuffer2.mapAsync(GPUMapMode.READ);
+    const buffer2 = this.debugBuffer2.getMappedRange(0, this.particleCount * Float32Array.BYTES_PER_ELEMENT);
+    const array2 = new Float32Array(buffer2);
 
+    let min = array1[0]; let max = array1[0];
+    let min_index = 0; let max_index = 0;
+    array1.forEach((val, i) => {
+      if (val >= max) { max = val; max_index = i; }
+      if (val <= min) { min = val; min_index = i; }
+    });
+    console.log(min_index, min);
+    console.log(max_index, max);
+
+    min = array2[0]; max = array2[0];
+    min_index = 0; max_index = 0;
+    array2.forEach((val, i) => {
+      if (val >= max) { max = val; max_index = i; }
+      if (val <= min) { min = val; min_index = i; }
+    });
+    console.log(min_index, min);
+    console.log(max_index, max);
 
     await this.neighborSearch.debug();
 

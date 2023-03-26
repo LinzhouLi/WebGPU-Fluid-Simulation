@@ -82,12 +82,12 @@ const NeighborSearch = /* wgsl */`
       positionDelta = particlePosition[nParticleIdx] - sParticlePosition;
       if (dot(positionDelta, positionDelta) <= SearchRadiusSqr) { // within search radius
         // neighbor.particleIndex[neighborCount] = nParticleIdx;
-        neighborList[nParticleIdx].particleIndex[neighborCount] = nParticleIdx;
+        neighborList[particleIndex].particleIndex[neighborCount] = nParticleIdx;
         neighborCount++;
         if (neighborCount > MaxNeighborCount) {
           // neighbor.count = MaxNeighborCount;
           // neighborList[particleIndex] = neighbor;
-          neighborList[nParticleIdx].count = MaxNeighborCount;
+          neighborList[particleIndex].count = MaxNeighborCount;
           return;
         }
       }
@@ -163,7 +163,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   nCoord.x =  1; nCoord.y =  1; nCoord.z =  1; ${NeighborSearch}
 
   // neighborList[particleIndex] = neighbor;
-  neighborList[nParticleIdx].count = neighborCount;
+  neighborList[particleIndex].count = neighborCount;
   return;
 }
 `;

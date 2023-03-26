@@ -30,8 +30,9 @@ class NeighborSearch {
 
   private scan: ExclusiveScan;
 
-  // private debugBuffer1: GPUBuffer;
-  // private debugBuffer2: GPUBuffer;
+  private static debug = false;
+  private debugBuffer1: GPUBuffer;
+  private debugBuffer2: GPUBuffer;
 
   constructor(
     particleCount: number,
@@ -54,12 +55,14 @@ class NeighborSearch {
 
     // create GPU Buffers
     // grid cell buffer x2
-    const cellBufferDesp = {
+    this.cellParticleCount = device.createBuffer({
+      size: this.gridCellCountAlignment * Uint32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+    });
+    this.cellOffset = device.createBuffer({
       size: this.gridCellCountAlignment * Uint32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
-    } as GPUBufferDescriptor;
-    this.cellParticleCount = device.createBuffer(cellBufferDesp);
-    this.cellOffset = device.createBuffer(cellBufferDesp);
+    });
 
     // particle buffer x1
     const particleBufferDesp = {
@@ -81,14 +84,16 @@ class NeighborSearch {
     ]);
     device.queue.writeBuffer( this.gridInfo, 0, gridInfoArray, 0 );
 
-    // this.debugBuffer1 = device.createBuffer({
-    //   size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
-    //   usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
-    // });
-    // this.debugBuffer2 = device.createBuffer({
-    //   size: (PBFConfig.MAX_NEIGHBOR_COUNT + 1) * this.particleCount * Uint32Array.BYTES_PER_ELEMENT,
-    //   usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
-    // });
+    if (NeighborSearch.debug) {
+      this.debugBuffer1 = device.createBuffer({
+        size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+      });
+      this.debugBuffer2 = device.createBuffer({
+        size: (PBFConfig.MAX_NEIGHBOR_COUNT + 1) * this.particleCount * Uint32Array.BYTES_PER_ELEMENT,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+      });
+    }
 
   }
 
@@ -171,6 +176,12 @@ class NeighborSearch {
 
   }
 
+  public clearBuffer(commandEncoder: GPUCommandEncoder) {
+
+    commandEncoder.clearBuffer(this.cellParticleCount);
+
+  }
+
   public execute(passEncoder: GPUComputePassEncoder) {
 
     const workgroupCount = Math.ceil(this.particleCount / 64);
@@ -197,65 +208,72 @@ class NeighborSearch {
 
   public async debug() {
 
-    // const ce = device.createCommandEncoder();
-    // ce.copyBufferToBuffer(
-    //   this.particlePosition, 0,
-    //   this.debugBuffer1, 0,
-    //   4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT
-    // );
-    // ce.copyBufferToBuffer(
-    //   this.neighborList, 0,
-    //   this.debugBuffer2, 0,
-    //   (PBFConfig.MAX_NEIGHBOR_COUNT + 1) * this.particleCount * Uint32Array.BYTES_PER_ELEMENT
-    // );
-    // device.queue.submit([ ce.finish() ]);
+    if (NeighborSearch.debug) {
+      
+      const ce = device.createCommandEncoder();
+      ce.copyBufferToBuffer(
+        this.particlePosition, 0,
+        this.debugBuffer1, 0,
+        4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT
+      );
+      ce.copyBufferToBuffer(
+        this.neighborList, 0,
+        this.debugBuffer2, 0,
+        (PBFConfig.MAX_NEIGHBOR_COUNT + 1) * this.particleCount * Uint32Array.BYTES_PER_ELEMENT
+      );
+      device.queue.submit([ ce.finish() ]);
 
-    // await this.debugBuffer1.mapAsync(GPUMapMode.READ);
-    // const buffer1 = this.debugBuffer1.getMappedRange(0, 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT);
-    // const postionArray = new Float32Array(buffer1);
+      await this.debugBuffer1.mapAsync(GPUMapMode.READ);
+      const buffer1 = this.debugBuffer1.getMappedRange(0, 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT);
+      const postionArray = new Float32Array(buffer1);
+      // console.log(postionArray)
+      
+      await this.debugBuffer2.mapAsync(GPUMapMode.READ);
+      const buffer2 = this.debugBuffer2.getMappedRange(0, (PBFConfig.MAX_NEIGHBOR_COUNT + 1) * this.particleCount * Float32Array.BYTES_PER_ELEMENT);
+      const neighborListArray = new Uint32Array(buffer2);
+      console.log(neighborListArray)
+
+      const index = new Array(5).fill(0).map(_ => Math.floor(Math.random() * this.particleCount));
+      const position = new Array(5).fill(0).map((_, i) => new THREE.Vector3().set( 
+        postionArray[4 * index[i]], postionArray[4 * index[i] + 1], postionArray[4 * index[i] + 2] 
+      ));
+      
+      let neighborPos = new THREE.Vector3();
+      let deltaPos = new THREE.Vector3();
+      const neighborList = new Array(5).fill(0).map(_ => new Array());
+      for (let i = 0; i < this.particleCount; i++) {
+        neighborPos.set( postionArray[4 * i], postionArray[4 * i + 1], postionArray[4 * i + 2] );
+        position.forEach((pos, j) => {
+          deltaPos.copy(neighborPos).sub(pos);
+          if (deltaPos.length() <= this.searchRadius) {
+            neighborList[j].push(i);
+          }
+        });
+      }
+      
+
+      let right = true;
+      const alignment = PBFConfig.MAX_NEIGHBOR_COUNT + 1;
+      neighborList.forEach((list, i) => {
+        const start = index[i] * alignment;
+        const neighborCountTest = neighborListArray[start];
+        let neiborListTest = neighborListArray.slice(
+          start + 1, start + 1 + neighborCountTest
+        ).sort((a, b) => a - b);
+
+        const neighborCountTrue = list.length;
+        let neiborListTrue = list.sort((a, b) => a - b);
+
+        if (neighborCountTrue != neighborCountTest) right = false;
+        else neiborListTrue.forEach((val, j) => {
+          if (val != neiborListTest[j]) right = false;
+        });
+        console.log(neiborListTest, neiborListTrue)
+      });
+      console.log(right);
+
+    }
     
-    // await this.debugBuffer2.mapAsync(GPUMapMode.READ);
-    // const buffer2 = this.debugBuffer2.getMappedRange(0, (PBFConfig.MAX_NEIGHBOR_COUNT + 1) * this.particleCount * Float32Array.BYTES_PER_ELEMENT);
-    // const neighborListArray = new Uint32Array(buffer2);
-
-    // const index = new Array(5).fill(0).map(_ => Math.floor(Math.random() * this.particleCount));
-    // const position = new Array(5).fill(0).map((_, i) => new THREE.Vector3().set( 
-    //   postionArray[4 * index[i]], postionArray[4 * index[i] + 1], postionArray[4 * index[i] + 2] 
-    // ));
-    
-    // let neighborPos = new THREE.Vector3();
-    // let deltaPos = new THREE.Vector3();
-    // const neighborList = new Array(5).fill(0).map(_ => new Array());
-    // for (let i = 0; i < this.particleCount; i++) {
-    //   neighborPos.set( postionArray[4 * i], postionArray[4 * i + 1], postionArray[4 * i + 2] );
-    //   position.forEach((pos, j) => {
-    //     deltaPos.copy(neighborPos).sub(pos);
-    //     if (deltaPos.length() <= this.searchRadius) {
-    //       neighborList[j].push(i);
-    //     }
-    //   });
-    // }
-    
-
-    // let right = true;
-    // const alignment = PBFConfig.MAX_NEIGHBOR_COUNT + 1;
-    // neighborList.forEach((list, i) => {
-    //   const start = index[i] * alignment;
-    //   const neighborCountTest = neighborListArray[start];
-    //   let neiborListTest = neighborListArray.slice(
-    //     start + 1, start + 1 + neighborCountTest
-    //   ).sort((a, b) => a - b);
-
-    //   const neighborCountTrue = list.length;
-    //   let neiborListTrue = list.sort((a, b) => a - b);
-
-    //   if (neighborCountTrue != neighborCountTest) right = false;
-    //   else neiborListTrue.forEach((val, j) => {
-    //     if (val != neiborListTest[j]) right = false;
-    //   });
-    // });
-    // console.log(right);
-
     await this.scan.debug()
 
   }

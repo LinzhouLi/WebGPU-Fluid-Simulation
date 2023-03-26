@@ -27,6 +27,7 @@ class Main {
 
   start() {
     
+    let frame = 0;
     const render = () => {
       this.stats.begin();
       
@@ -34,10 +35,14 @@ class Main {
       this.controller.run();
 
       this.stats.end();
-      // requestAnimationFrame(render);
+      // if (frame < 0) 
+      requestAnimationFrame(render);
+      frame++;
     }
 
     render();
+
+    // this.controller.debug();
 
   }
 
