@@ -92,7 +92,6 @@ ${KernalSpikyGrad}
 @group(0) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
 @group(0) @binding(2) var<storage, read_write> lambda: array<f32>;
 @group(0) @binding(3) var<storage, read_write> neighborList: array<Neighbor>;
-@group(0) @binding(4) var<storage, read_write> tempBuffer: array<f32>; // !!!
 
 @compute @workgroup_size(64, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
@@ -126,7 +125,6 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let constrain = max(0.0, density * InvRestDensity - 1.0);
   let sum_grad_Ci_2 = (dot(grad_Pi_Ci, grad_Pi_Ci) + sum_grad_Pj_Ci_2) * InvRestDensity2;
   lambda[particleIndex] = -constrain / (sum_grad_Ci_2 + LambdaEPS);
-  tempBuffer[particleIndex] = density;
   return;
 }
 `;
@@ -176,7 +174,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
     scorr *= scorr;
     scorr *= ScorrCoef * scorr;
 
-    positionUpdate += (selfLambda + neighborLambda) * // + scorr) * !!!
+    positionUpdate += (selfLambda + neighborLambda + scorr) *
       kernalSpikyGrad(positionDelta, positionDeltaLength);
   }
 
@@ -266,7 +264,6 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
     velocityUpdate += velocityDelta * kernalPoly6(positionDeltaLength);
   }
 
-  let t = XSPHCoef * velocityUpdate * InvRestDensity;
   velocity[particleIndex] = selfVelocity + XSPHCoef * velocityUpdate * InvRestDensity;
   return;
 }

@@ -63,7 +63,15 @@ class PBF extends PBFConfig {
 
     const particlePerDim = 25;
     const range = 0.5;
-    this.restDensity = this.particleCount / (range * range * range);
+    if (this.restDensity)
+      this.particleWeight = 0.95 * (range * range * range) * this.restDensity / this.particleCount;
+    else if (this.particleWeight)
+      this.restDensity = this.particleWeight * this.particleCount / (range * range * range);
+    else {
+      this.particleWeight = 1.0;
+      this.restDensity = this.particleWeight * this.particleCount / (range * range * range);
+    }
+    console.log(this.particleWeight, this.restDensity);
 
     // set initial particle position
     let positionArray = new Float32Array(4 * this.particleCount);
@@ -97,6 +105,7 @@ class PBF extends PBFConfig {
       let len = Math.sqrt(npos[0]*npos[0] + npos[1]*npos[1] + npos[2]*npos[2]);
       density += kernalPoly6(len);
     }
+    density *= this.particleWeight;
     console.log(density, this.restDensity);
 
     // create GPU Buffers
