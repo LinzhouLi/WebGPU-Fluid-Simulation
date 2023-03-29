@@ -11,9 +11,10 @@ abstract class PBFConfig extends LagrangianSimulator {
   protected scorrCoefK = 1e-6;
   protected scorrCoefDq = 0.3; // [0.1, 0.3]
   protected scorrCoefN = 4; // fixed
-  protected XSPHCoef = 0.01;
-  protected restDensity: number;
-  protected particleWeight: number = 1.0;
+  protected XSPHCoef = 0.1;
+  protected restDensity: number = 1000.0;
+  protected particleVolume: number;
+  protected particleWeight: number;
 
   constructor(particleCount: number = 1) {
     super(particleCount, 1); // sub step count = 1

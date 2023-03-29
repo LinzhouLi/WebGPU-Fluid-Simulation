@@ -82,8 +82,8 @@ const EPS: f32 = 1e-6;
 const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
 const MaxNeighborCount: u32 = ${PBFConfig.MAX_NEIGHBOR_COUNT};
 override ParticleCount: u32;
-override InvRestDensity: f32;
-override InvRestDensity2: f32;
+override ParticleVolume: f32;
+override ParticleVolume2: f32;
 override LambdaEPS: f32;
 ${NeighborStruct}
 ${KernalPoly6}
@@ -122,8 +122,8 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
     density += kernalPoly6(positionDeltaLength);
   }
 
-  let constrain = max(0.0, density * InvRestDensity - 1.0);
-  let sum_grad_Ci_2 = (dot(grad_Pi_Ci, grad_Pi_Ci) + sum_grad_Pj_Ci_2) * InvRestDensity2;
+  let constrain = max(0.0, density * ParticleVolume - 1.0);
+  let sum_grad_Ci_2 = (dot(grad_Pi_Ci, grad_Pi_Ci) + sum_grad_Pj_Ci_2) * ParticleVolume2;
   lambda[particleIndex] = -constrain / (sum_grad_Ci_2 + LambdaEPS);
   return;
 }
@@ -136,7 +136,7 @@ const EPS: f32 = 1e-6;
 const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
 const MaxNeighborCount: u32 = ${PBFConfig.MAX_NEIGHBOR_COUNT};
 override ParticleCount: u32;
-override InvRestDensity: f32;
+override ParticleVolume: f32;
 override ScorrCoef: f32;
 ${NeighborStruct}
 ${KernalPoly6}
@@ -174,11 +174,11 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
     scorr *= scorr;
     scorr *= ScorrCoef * scorr;
 
-    positionUpdate += (selfLambda + neighborLambda + scorr) *
+    positionUpdate += (selfLambda + neighborLambda) * // + scorr) *
       kernalSpikyGrad(positionDelta, positionDeltaLength);
   }
 
-  deltaPosition[particleIndex] = positionUpdate * InvRestDensity;
+  deltaPosition[particleIndex] = positionUpdate * ParticleVolume;
   return;
 }
 `;
@@ -229,7 +229,7 @@ const PI: f32 = ${Math.PI};
 const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
 const MaxNeighborCount: u32 = ${PBFConfig.MAX_NEIGHBOR_COUNT};
 override ParticleCount: u32;
-override InvRestDensity: f32;
+override ParticleVolume: f32;
 override XSPHCoef: f32;
 ${NeighborStruct}
 ${KernalPoly6}
@@ -264,7 +264,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
     velocityUpdate += velocityDelta * kernalPoly6(positionDeltaLength);
   }
 
-  velocity[particleIndex] = selfVelocity + XSPHCoef * velocityUpdate * InvRestDensity;
+  velocity[particleIndex] = selfVelocity + XSPHCoef * velocityUpdate * ParticleVolume;
   return;
 }
 `;

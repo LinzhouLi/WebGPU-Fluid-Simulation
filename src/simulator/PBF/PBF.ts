@@ -63,13 +63,10 @@ class PBF extends PBFConfig {
 
     const particlePerDim = 25;
     const range = 0.5;
-    if (this.restDensity)
-      this.particleWeight = 0.95 * (range * range * range) * this.restDensity / this.particleCount;
-    else if (this.particleWeight)
-      this.restDensity = this.particleWeight * this.particleCount / (range * range * range);
-    else {
-      this.particleWeight = 1.0;
-      this.restDensity = this.particleWeight * this.particleCount / (range * range * range);
+    const particleDiam = range / particlePerDim;
+    if (this.restDensity) {
+      this.particleVolume = 0.8 * particleDiam * particleDiam * particleDiam;
+      this.particleWeight = this.particleVolume * this.restDensity;
     }
     console.log(this.particleWeight, this.restDensity);
 
@@ -79,7 +76,7 @@ class PBF extends PBFConfig {
     for (let i = 0; i < particlePerDim; i++) {
       for (let j = 0; j < particlePerDim; j++) {
         for (let k = 0; k < particlePerDim; k++) {
-          position.set(i, j, k).multiplyScalar(range / particlePerDim).addScalar(0.15);
+          position.set(i, j, k).multiplyScalar(particleDiam).addScalar(0.15);
           positionArray.set(
             position.toArray(),
             (i * particlePerDim * particlePerDim + j * particlePerDim + k) * 4
@@ -284,8 +281,8 @@ class PBF extends PBFConfig {
         entryPoint: 'main',
         constants: {
           ParticleCount: this.particleCount,
-          InvRestDensity: 1 / this.restDensity,
-          InvRestDensity2: 1 / (this.restDensity * this.restDensity),
+          ParticleVolume: this.particleVolume,
+          ParticleVolume2: this.particleVolume * this.particleVolume,
           LambdaEPS: this.lambdaEPS
         }
       }
@@ -301,7 +298,7 @@ class PBF extends PBFConfig {
         entryPoint: 'main',
         constants: {
           ParticleCount: this.particleCount,
-          InvRestDensity: 1 / this.restDensity,
+          ParticleVolume: this.particleVolume,
           ScorrCoef: this.getScorrCoefficient()
         }
       }
@@ -344,7 +341,7 @@ class PBF extends PBFConfig {
         entryPoint: 'main',
         constants: {
           ParticleCount: this.particleCount,
-          InvRestDensity: 1 / this.restDensity,
+          ParticleVolume: this.particleVolume,
           XSPHCoef: this.XSPHCoef
         }
       }
