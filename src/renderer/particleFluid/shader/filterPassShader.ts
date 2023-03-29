@@ -1,55 +1,94 @@
 
-const computeShader = /* wgsl */`
+const NarrowRangeFilter = /* wgsl */`
+  // Is depth too low? Keep filter symmetric and early out for both opposing values.
+  if (any(sampleValue < vec2<f32>(thresholdLow))) { continue; }
 
-override width: u32;
-override height: u32;
+  // Is depth too high? Clamp to upper bound.
+  sampleValue = select(sampleValue, vec2<f32>(valueBoundHigh), sampleValue > vec2<f32>(thresholdHigh));
+
+  // Dynamic depth range.
+  thresholdLow = min(thresholdLow, min(sampleValue.x, sampleValue.y) - threshold);
+  thresholdHigh = max(thresholdHigh, max(sampleValue.x, sampleValue.y) + threshold);
+
+  // Add sample values
+  weightSum += gaussianWeight * 2.0;
+  valueSum += (sampleValue.x + sampleValue.y) * gaussianWeight;
+`;
+
+
+const computeShader = /* wgsl */`
+const MaxFilterSize: u32 = 32;
+const HalfMaxFilterSize: u32 = MaxFilterSize >> 1;
+const SharedDataSize: u32 = MaxFilterSize << 1;
+const Sigma: f32 = f32(HalfMaxFilterSize) / 2.0;
+const GaussianK: f32 = 0.5 / (Sigma * Sigma);
+const ParticleRadius: f32 = 0.025;
+const threshold: f32 = ParticleRadius * 5.0;
+const mu: f32 = ParticleRadius;
 
 @group(0) @binding(0) var srcTexture: texture_2d<f32>;
 @group(0) @binding(1) var destTexture: texture_storage_2d<r32float, write>;
 @group(0) @binding(2) var<uniform> filterDirection: vec2<i32>;
 @group(0) @binding(3) var<uniform> filterSize: i32;
 
-@compute @workgroup_size(4, 4, 1)
-fn main(@builtin(global_invocation_id) global_index : vec3<u32>) {
+var<workgroup> sharedBuffer: array<f32, SharedDataSize>;
 
-  if (global_index.x >= width || global_index.y >= height) { return; }
-  let coord = vec2<i32>(global_index.xy);
-  let val = textureLoad(srcTexture, coord, 0).r;
+@compute @workgroup_size(MaxFilterSize, 1, 1)
+fn main(
+  @builtin(local_invocation_index) thread_id: u32,
+  @builtin(global_invocation_id) global_id: vec3<u32>,
+  @builtin(workgroup_id) block_id: vec3<u32>
+) {
 
-  if (val > 0.0) {
-    var val_sum = 0.0; var weight_sum = 0.0;
-    var sample_val: f32; var sample_weight: f32;
-    var r: f32;
-    for (var i: i32 = -filterSize; i <= filterSize; i++) {
-      sample_val = textureLoad(srcTexture, coord + i * filterDirection, 0).r;
-      if (sample_val == 0.0) { continue; }
+  // preload to shared buffer
+  let texCoord = 
+    i32(block_id.x * MaxFilterSize + thread_id) * filterDirection + 
+    i32(block_id.y) * (vec2<i32>(1) - filterDirection);
+  sharedBuffer[thread_id] = textureLoad(srcTexture, texCoord - i32(HalfMaxFilterSize) * filterDirection, 0).r;
+  sharedBuffer[thread_id + MaxFilterSize] = textureLoad(srcTexture, texCoord + i32(HalfMaxFilterSize) * filterDirection, 0).r;
+  workgroupBarrier();
 
-      // spatial domain
-      r = f32(i) * 0.01;
-      sample_weight = exp(-r * r);
+  // filter
+  let sharedBufferCenterIndex = thread_id + HalfMaxFilterSize;
+  let centerSampleValue = sharedBuffer[sharedBufferCenterIndex];
+  if (centerSampleValue > 0.0) {
+    var valueSum: f32 = centerSampleValue;
+    var weightSum: f32 = 1.0;
 
-      // range domain;
-      r = (sample_val - val) * 2.0;
-      sample_weight = sample_weight * exp(-r * r);
+    var sampleValue: vec2<f32>; 
+    var gaussianWeight: f32;
+    var thresholdLow = centerSampleValue - threshold;
+    var thresholdHigh = centerSampleValue + threshold;
+    let valueBoundHigh = centerSampleValue + mu;
+    for (var i: u32 = 1; i <= HalfMaxFilterSize; i++) {
+      sampleValue.x = sharedBuffer[sharedBufferCenterIndex - i];
+      sampleValue.y = sharedBuffer[sharedBufferCenterIndex + i];
 
-      val_sum = val_sum + sample_val * sample_weight;
-      weight_sum = weight_sum + sample_weight;
+      gaussianWeight = exp(- f32(i * i) * GaussianK);
+      ${NarrowRangeFilter}
     }
 
-    if (sample_weight > 0.0) {
-      textureStore(
-        destTexture, global_index.xy, 
-        vec4<f32>(val_sum / weight_sum, 0.0, 0.0, 0.0)
-      );
-    }
-  }
-  else {
-    textureStore( destTexture, global_index.xy, vec4<f32>(0.0) );
+    valueSum /= weightSum;
+    textureStore(destTexture, texCoord, vec4<f32>(valueSum));
   }
   return;
 
 }
-
 `;
 
 export { computeShader };
+
+
+// // spatial domain
+// r = vec2<f32>(f32(i) * 0.01);
+// sampleWeight = exp(-r * r);
+
+// // range domain;
+// r = (sampleValue - centerSampleValue) * 2.0;
+// sampleWeight = sampleWeight * exp(-r * r);
+
+// sampleWeight = select(sampleWeight, zeroVec2, sampleValue == zeroVec2);
+// sampleValue *= sampleWeight;
+
+// valueSum += sampleValue.x + sampleValue.y;
+// weightSum += sampleWeight.x + sampleWeight.y;

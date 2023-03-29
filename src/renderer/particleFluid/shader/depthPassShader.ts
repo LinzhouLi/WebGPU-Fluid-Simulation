@@ -35,7 +35,7 @@ fn main(input: FragmentInput) -> FragmentOutput {
   let depth = positionClip.z / positionClip.w;
   let depthCam = -positionCam.z / positionCam.w;
 
-  return FragmentOutput( depth, vec4<f32>(depthCam, 0.0, 0.0, 1.0) );
+  return FragmentOutput( depth, vec4<f32>(depthCam) );
 
 }
 

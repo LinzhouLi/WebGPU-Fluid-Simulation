@@ -47,7 +47,7 @@ class SpriteParticles {
     this.vertexShaderCode = vertexShader;
     this.fragmentShaderCode = fragmentShader;
     this.simulator = simulator;
-    this.radius = 0.03;
+    this.radius = 0.025;
     this.spriteMesh = new THREE.Mesh(
       new THREE.PlaneGeometry( 1, 1 ),
       new THREE.MeshLambertMaterial({ color: 0x049ef4 })

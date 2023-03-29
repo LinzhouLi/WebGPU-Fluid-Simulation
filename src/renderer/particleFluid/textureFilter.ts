@@ -34,7 +34,7 @@ class TextureFilter {
     this.tempTexture = device.createTexture({
       size: this.textureSize,
       format: 'r32float',
-      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT
     });
 
     this.filterSize = new Int32Array(1);
@@ -126,10 +126,10 @@ class TextureFilter {
       compute: {
         module: device.createShaderModule({ code: this.computeShaderCode }),
         entryPoint: 'main',
-        constants: {
-          width: this.textureSize[0],
-          height: this.textureSize[1]
-        }
+        // constants: {
+        //   width: this.textureSize[0],
+        //   height: this.textureSize[1]
+        // }
       }
     });
 
@@ -147,25 +147,36 @@ class TextureFilter {
 
   public execute( commandEncoder: GPUCommandEncoder ) {
 
-    const passEncoder = commandEncoder.beginComputePass();
+    // clear temp texture
+    const renderPassEncoder = commandEncoder.beginRenderPass({
+      colorAttachments: [{
+        view: this.tempTexture.createView(),
+        clearValue: { r: 0, g: 0, b: 0, a: 0.0 },
+        loadOp: 'clear',
+        storeOp: 'store'
+      }]
+    });
+    renderPassEncoder.end();
 
-    passEncoder.setPipeline(this.pipeline);
+    // filter
+    const computePassEncoder = commandEncoder.beginComputePass();
+    computePassEncoder.setPipeline(this.pipeline);
 
     // x-axis
-    passEncoder.setBindGroup(0, this.bindGroupX);
-    passEncoder.dispatchWorkgroups(
-      this.textureSize[0] / 4, 
-      this.textureSize[1] / 4
+    computePassEncoder.setBindGroup(0, this.bindGroupX);
+    computePassEncoder.dispatchWorkgroups(
+      Math.ceil(this.textureSize[0] / 32), 
+      Math.ceil(this.textureSize[1] / 1)
     );
 
     // y-axis
-    passEncoder.setBindGroup(0, this.bindGroupY);
-    passEncoder.dispatchWorkgroups(
-      this.textureSize[0] / 4, 
-      this.textureSize[1] / 4
+    computePassEncoder.setBindGroup(0, this.bindGroupY);
+    computePassEncoder.dispatchWorkgroups(
+      Math.ceil(this.textureSize[1] / 32), 
+      Math.ceil(this.textureSize[0] / 1)
     );
 
-    passEncoder.end();
+    computePassEncoder.end();
 
   }
 
