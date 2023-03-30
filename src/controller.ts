@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GlobalResource } from './renderer/globalResource';
-import { SpriteParticles } from './renderer/spriteParticles/particles';
-import { ParticleFluid } from './renderer/particleFluid/fluid'
+import { ParticleFluid } from './renderer/particleFluid/fluid';
+import { FilteredParticleFluid } from './renderer/filteredParticleFluid/fluid'
 import { Skybox } from './renderer/skybox';
 import { LagrangianSimulator } from './simulator/LagrangianSimulator';
 // import { MPM } from './simulator/MPM';
@@ -88,8 +88,8 @@ class Controller {
   public globalResource: GlobalResource;
 
   private skybox: Skybox;
-  // private particles: SpriteParticles;
-  private fluidRender: ParticleFluid;
+  // private particles: ParticleFluid;
+  private fluidRender: FilteredParticleFluid;
   private simulator: LagrangianSimulator;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -98,8 +98,8 @@ class Controller {
 
   private RegisterResourceFormats() {
     GlobalResource.RegisterResourceFormats();
-    SpriteParticles.RegisterResourceFormats();
     ParticleFluid.RegisterResourceFormats();
+    FilteredParticleFluid.RegisterResourceFormats();
     LagrangianSimulator.RegisterResourceFormats();
     // MPM._RegisterResourceFormats();
   }
@@ -162,7 +162,7 @@ class Controller {
     // this.particles.initVertexBuffer();
     // await this.particles.initGroupResource(this.globalResource.resource);
     // await this.particles.initPipeline();
-    this.fluidRender = new ParticleFluid(this.simulator, this.camera);
+    this.fluidRender = new FilteredParticleFluid(this.simulator, this.camera);
     await this.fluidRender.initResource(this.globalResource.resource);
 
     // sky box renderer
@@ -178,10 +178,6 @@ class Controller {
     await this.skybox.setRenderBundle(renderBundleEncoder);
     // await this.particles.setRenderBundle(renderBundleEncoder);
     this.renderBundle = renderBundleEncoder.finish();
-
-    // neighbor debug
-    // this.nl = new NeighborList();
-    // await this.nl.initResource()
 
   }
 

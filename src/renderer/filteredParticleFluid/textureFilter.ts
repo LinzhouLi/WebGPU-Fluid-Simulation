@@ -11,6 +11,10 @@ class TextureFilter {
 
   protected filterSize: Int32Array;
   protected filterSizeBuffer: GPUBuffer;
+  protected filterDirBuffer: {
+    X: GPUBuffer;
+    Y: GPUBuffer;
+  }
 
   protected bindGroupLayout: GPUBindGroupLayout;
   protected bindGroupX: GPUBindGroup;
@@ -23,55 +27,53 @@ class TextureFilter {
 
   }
 
-  public setTexture(
+  public async initResource(
     filterTexture: GPUTexture,
     textureSize: number[]
   ) {
 
     this.filterTexture = filterTexture;
     this.textureSize = textureSize;
+    
+    this.initGroupResource();
+    this.initBindGroup();
+    await this.initPipeline();
 
+  }
+
+  protected initGroupResource() {
+
+    // temp texture for storing intermediate filtering result
     this.tempTexture = device.createTexture({
       size: this.textureSize,
       format: 'r32float',
       usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT
     });
 
+    // filter size buffer
     this.filterSize = new Int32Array(1);
     this.filterSizeBuffer = device.createBuffer({
       size: 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM
-    })
+    });
 
-  }
-
-  private createFilterDirBuffer() {
-
+    // filter direction buffer [1, 0] & [0, 1]
     const filterDirBufferDescriptor = {
       size: 8, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM
     };
+    this.filterDirBuffer = {
+      X: device.createBuffer(filterDirBufferDescriptor),
+      Y: device.createBuffer(filterDirBufferDescriptor)
+    };
 
-    const filterDirBufferX = device.createBuffer(filterDirBufferDescriptor);
-    const filterDirBufferY = device.createBuffer(filterDirBufferDescriptor);
-
-    const filterDirDataX = new Int32Array(2);
-    filterDirDataX.set([1, 0]);
-    device.queue.writeBuffer(
-      filterDirBufferX, 0,
-      filterDirDataX, 0
-    );
-
-    const filterDirDataY = new Int32Array(2);
-    filterDirDataY.set([0, 1]);
-    device.queue.writeBuffer(
-      filterDirBufferY, 0,
-      filterDirDataY, 0
-    );
-
-    return { filterDirBufferX, filterDirBufferY };
+    const filterDirData = new Int32Array(2);
+    filterDirData.set([1, 0]);
+    device.queue.writeBuffer( this.filterDirBuffer.X, 0, filterDirData, 0 );
+    filterDirData.set([0, 1]);
+    device.queue.writeBuffer( this.filterDirBuffer.Y, 0, filterDirData, 0 );
 
   }
 
-  public initBindGroup() {
+  protected initBindGroup() {
 
     this.bindGroupLayout = device.createBindGroupLayout({
       label: 'Filter Pipeline Bind Group Layout',
@@ -92,7 +94,6 @@ class TextureFilter {
 
     const filterTextureView = this.filterTexture.createView();
     const tempTextureView = this.tempTexture.createView();
-    const { filterDirBufferX, filterDirBufferY } = this.createFilterDirBuffer();
 
     this.bindGroupX = device.createBindGroup({
       label: 'Filter Pipeline Bind Group (X-axis)',
@@ -100,7 +101,7 @@ class TextureFilter {
       entries: [
         { binding: 0, resource: filterTextureView }, 
         { binding: 1, resource: tempTextureView },
-        { binding: 2, resource: { buffer: filterDirBufferX } },
+        { binding: 2, resource: { buffer: this.filterDirBuffer.X } },
         { binding: 3, resource: { buffer: this.filterSizeBuffer } }
       ]
     });
@@ -111,14 +112,14 @@ class TextureFilter {
       entries: [
         { binding: 0, resource: tempTextureView }, 
         { binding: 1, resource: filterTextureView },
-        { binding: 2, resource: { buffer: filterDirBufferY } },
+        { binding: 2, resource: { buffer: this.filterDirBuffer.Y } },
         { binding: 3, resource: { buffer: this.filterSizeBuffer } }
       ]
     });
 
   }
 
-  public async initPipeline() {
+  protected async initPipeline() {
 
     this.pipeline = await device.createComputePipelineAsync({
       label: 'Filter Pipeline',

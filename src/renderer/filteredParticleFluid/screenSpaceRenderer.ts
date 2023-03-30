@@ -3,7 +3,7 @@ import { bindGroupFactory } from '../../common/base';
 import { vertexShader } from './shader/screenVertexShader';
 import { fragmentShader } from './shader/renderPassShader';
 
-class Postprocess {
+class ScreenSpaceRenderer {
 
   protected vertexShaderCode: string;
   protected fragmentShaderCode: string;
@@ -20,7 +20,17 @@ class Postprocess {
 
   }
 
-  public initBindGroup(
+  public async initResource(
+    resource: { [x: string]: GPUBuffer | GPUTexture | GPUSampler }
+  ) {
+
+    this.initBindGroup(resource);
+    await this.initPipeline();
+    this.initRenderBundle();
+
+  }
+
+  private initBindGroup(
     resource: { [x: string]: GPUBuffer | GPUTexture | GPUSampler }
   ) {
 
@@ -36,7 +46,7 @@ class Postprocess {
 
   }
 
-  public async initPipeline() {
+  private async initPipeline() {
 
     this.renderPipeline = await device.createRenderPipelineAsync({
       label: 'Postprocess Pipeline',
@@ -71,9 +81,8 @@ class Postprocess {
 
   }
 
-  public initRenderBundle() {
+  private initRenderBundle() {
 
-    // depth pass
     let bundleEncoder = device.createRenderBundleEncoder({
       colorFormats: [ canvasFormat ]}
     );
@@ -84,7 +93,7 @@ class Postprocess {
 
   }
 
-  public render(
+  public execute(
     commandEncoder: GPUCommandEncoder,
     ctxTextureView: GPUTextureView
   ) {
@@ -103,4 +112,4 @@ class Postprocess {
 
 }
 
-export { Postprocess };
+export { ScreenSpaceRenderer };

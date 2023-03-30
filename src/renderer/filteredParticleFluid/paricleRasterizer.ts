@@ -1,11 +1,11 @@
 import { device, canvasSize } from '../../controller';
-import { SpriteParticles } from '../spriteParticles/particles';
+import { ParticleFluid } from '../particleFluid/fluid';
 import { LagrangianSimulator } from '../../simulator/LagrangianSimulator';
 import { depthPassfragmentShader } from './shader/depthPassShader';
 import { volumePassfragmentShader } from './shader/volumePassShader';
 
 
-class FluidParicles extends SpriteParticles {
+class ParicleRasterizer extends ParticleFluid {
 
   protected depthRenderPipeline: GPURenderPipeline;
   protected volumeRenderPipeline: GPURenderPipeline;
@@ -21,7 +21,19 @@ class FluidParicles extends SpriteParticles {
 
   }
 
-  public override async initPipeline() {
+  public override async initResource(
+    globalResource: { [x: string]: GPUBuffer | GPUTexture | GPUSampler }
+  ) {
+
+    this.initVertexBuffer();
+    await this.initGroupResource();
+    this.initBindGroup(globalResource);
+    await this.initPipeline()
+    this.initRenderBundle();
+
+  }
+
+  protected override async initPipeline() {
 
     // depth pass
     this.depthRenderPipeline = await device.createRenderPipelineAsync({
@@ -104,7 +116,7 @@ class FluidParicles extends SpriteParticles {
 
   }
 
-  public initRenderBundle() {
+  protected initRenderBundle() {
 
     // depth stencil map
     this.depthStencilMap = device.createTexture({
@@ -130,7 +142,7 @@ class FluidParicles extends SpriteParticles {
 
   }
 
-  public render(
+  public execute(
     commandEncoder: GPUCommandEncoder,
     depthMap: GPUTexture,
     volumeMap: GPUTexture
@@ -168,4 +180,4 @@ class FluidParicles extends SpriteParticles {
 
 }
 
-export { FluidParicles };
+export { ParicleRasterizer };
