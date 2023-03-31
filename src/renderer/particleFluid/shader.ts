@@ -8,9 +8,8 @@ ${ShaderStruct.Camera}
 ${ShaderStruct.SphereMaterial}
 
 struct VertexInput {
-  @builtin(instance_index) instanceIndex: u32,
-  @location(0) position: vec3<f32>,
-  @location(1) uv: vec2<f32>,
+  @builtin(vertex_index) vertexIndex: u32,
+  @builtin(instance_index) instanceIndex: u32
 };
 
 struct VertexOutput {
@@ -23,13 +22,22 @@ struct VertexOutput {
 @group(0) @binding(1) var<uniform> material: SphereMaterial;
 @group(0) @binding(2) var<storage> instancePositions: array<vec3<f32>>;
 
+const positions = array<vec2<f32>, 4>(
+  vec2<f32>(-0.5, -0.5), // Bottom Left
+  vec2<f32>( 0.5, -0.5), // Bottom Right
+  vec2<f32>(-0.5,  0.5), // Top Left
+  vec2<f32>( 0.5,  0.5)  // Top Right
+);
+
 @vertex
 fn main(input: VertexInput) -> VertexOutput {
+  let position = positions[input.vertexIndex];
+  let uv = position + 0.5;
   let centerPositonCam = camera.viewMatrix * vec4<f32>(instancePositions[input.instanceIndex], 1.0);
-  let positionCam = centerPositonCam + vec4<f32>(input.position * material.sphereRadius, 0.0);
+  let positionCam = centerPositonCam + vec4<f32>(position * material.sphereRadius, 0.0, 0.0);
   let positionScreen = camera.projectionMatrix * positionCam;
   return VertexOutput(
-    positionScreen, positionCam, input.uv
+    positionScreen, positionCam, uv
   );
 }
 

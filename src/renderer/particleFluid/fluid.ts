@@ -1,8 +1,7 @@
 import * as THREE from 'three';
-import type { TypedArray } from '../../common/base';
 import type { ResourceType, BufferData } from '../../common/resourceFactory';
 import { canvasFormat, device } from '../../controller';
-import { resourceFactory, vertexBufferFactory } from '../../common/base';
+import { resourceFactory } from '../../common/base';
 import { ResourceFactory } from '../../common/resourceFactory';
 import { LagrangianSimulator } from '../../simulator/LagrangianSimulator';
 import { vertexShader, fragmentShader } from './shader';
@@ -27,11 +26,6 @@ class ParticleFluid {
 
   protected vertexShaderCode: string;
   protected fragmentShaderCode: string;
-
-  protected vertexCount: number;
-  protected vertexBufferAttributes: string[]; // resource name
-  protected vertexBufferData: Record<string, TypedArray>; // resource in CPU
-  protected vertexBuffers: Record<string, GPUBuffer>; // resource in GPU
 
   protected resourceAttributes: string[]; // resource name
   protected resourceCPUData: Record<string, BufferData>; // resource in CPU
@@ -63,32 +57,9 @@ class ParticleFluid {
     globalResource: { [x: string]: GPUBuffer | GPUTexture | GPUSampler }
   ) {
 
-    this.initVertexBuffer();
     await this.initGroupResource();
     this.initBindGroup(globalResource);
     await this.initPipeline()
-
-  }
-
-  protected initVertexBuffer() {
-
-    this.vertexBufferAttributes = ['position', 'uv'];
-    this.vertexBufferData = {
-      position: this.spriteMesh.geometry.attributes.position.array as TypedArray,
-      uv: this.spriteMesh.geometry.attributes.uv.array as TypedArray,
-    };
-
-    if (!!this.spriteMesh.geometry.index) {
-      this.vertexBufferAttributes.push('index');
-      this.vertexBufferData.index = this.spriteMesh.geometry.index.array as TypedArray;
-      this.vertexCount = this.spriteMesh.geometry.index.count;
-    }
-    else {
-      this.vertexCount = this.spriteMesh.geometry.attributes.position.count;
-    }
-
-    this.vertexBufferLayout = vertexBufferFactory.createLayout(this.vertexBufferAttributes);
-    this.vertexBuffers = vertexBufferFactory.createResource(this.vertexBufferAttributes, this.vertexBufferData);
 
   }
 
@@ -176,8 +147,8 @@ class ParticleFluid {
         targets: [{ format: canvasFormat }],
       },
       primitive: {
-        topology: 'triangle-list',
-        cullMode: 'none' // do not need cull
+        topology: 'triangle-strip',
+        cullMode: 'none'
       }, 
       depthStencil: {
         depthWriteEnabled: true,
@@ -194,26 +165,11 @@ class ParticleFluid {
     
     bundleEncoder.setPipeline(this.renderPipeline);
 
-    // set vertex and index buffers
-    let loction = 0;
-    let indexed = false;
-    for (const attribute of this.vertexBufferAttributes) {
-      if (attribute === 'index') {
-        bundleEncoder.setIndexBuffer(this.vertexBuffers.index, 'uint16');
-        indexed = true;
-      }
-      else {
-        bundleEncoder.setVertexBuffer(loction, this.vertexBuffers[attribute]);
-        loction++;
-      }
-    }
-
     // set bind group
     bundleEncoder.setBindGroup(0, this.bindGroup);
 
     // draw
-    if (indexed) bundleEncoder.drawIndexed(this.vertexCount, this.simulator.particleCount);
-    else bundleEncoder.draw(this.vertexCount, this.simulator.particleCount);
+    bundleEncoder.draw(4, this.simulator.particleCount);
     
   }
 

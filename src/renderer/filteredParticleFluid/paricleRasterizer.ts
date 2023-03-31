@@ -2,7 +2,7 @@ import { device, canvasSize } from '../../controller';
 import { ParticleFluid } from '../particleFluid/fluid';
 import { LagrangianSimulator } from '../../simulator/LagrangianSimulator';
 import { depthPassfragmentShader } from './shader/depthPassShader';
-import { volumePassfragmentShader } from './shader/volumePassShader';
+import { volumePassVertexShader, volumePassfragmentShader } from './shader/volumePassShader';
 
 
 class ParicleRasterizer extends ParticleFluid {
@@ -25,7 +25,6 @@ class ParicleRasterizer extends ParticleFluid {
     globalResource: { [x: string]: GPUBuffer | GPUTexture | GPUSampler }
   ) {
 
-    this.initVertexBuffer();
     await this.initGroupResource();
     this.initBindGroup(globalResource);
     await this.initPipeline()
@@ -43,8 +42,7 @@ class ParicleRasterizer extends ParticleFluid {
       }),
       vertex: {
         module: device.createShaderModule({ code: this.vertexShaderCode }),
-        entryPoint: 'main',
-        buffers: this.vertexBufferLayout
+        entryPoint: 'main'
       },
       fragment: {
         module: device.createShaderModule({ code: depthPassfragmentShader }),
@@ -52,8 +50,8 @@ class ParicleRasterizer extends ParticleFluid {
         targets: [{ format: 'r32float' }]
       },
       primitive: {
-        topology: 'triangle-list',
-        cullMode: 'back'
+        topology: 'triangle-strip',
+        cullMode: 'none'
       }, 
       depthStencil: {
         depthWriteEnabled: true, // enable depth test
@@ -69,9 +67,8 @@ class ParicleRasterizer extends ParticleFluid {
         bindGroupLayouts: [this.bindGroupLayout]
       }),
       vertex: {
-        module: device.createShaderModule({ code: this.vertexShaderCode }),
-        entryPoint: 'main',
-        buffers: this.vertexBufferLayout
+        module: device.createShaderModule({ code: volumePassVertexShader }),
+        entryPoint: 'main'
       },
       fragment: {
         module: device.createShaderModule({ code: volumePassfragmentShader }),
@@ -86,8 +83,8 @@ class ParicleRasterizer extends ParticleFluid {
         }]
       },
       primitive: {
-        topology: 'triangle-list',
-        cullMode: 'back'
+        topology: 'triangle-strip',
+        cullMode: 'none'
       },
     });
 
@@ -99,20 +96,8 @@ class ParicleRasterizer extends ParticleFluid {
   ) {
 
     bundleEncoder.setPipeline(pipeline);
-    let loction = 0, indexed = false;
-    for (const attribute of this.vertexBufferAttributes) {
-      if (attribute === 'index') {
-        bundleEncoder.setIndexBuffer(this.vertexBuffers.index, 'uint16');
-        indexed = true;
-      }
-      else {
-        bundleEncoder.setVertexBuffer(loction, this.vertexBuffers[attribute]);
-        loction++;
-      }
-    }
     bundleEncoder.setBindGroup(0, this.bindGroup);
-    if (indexed) bundleEncoder.drawIndexed(this.vertexCount, this.simulator.particleCount);
-    else bundleEncoder.draw(this.vertexCount, this.simulator.particleCount);
+    bundleEncoder.draw(4, this.simulator.particleCount);
 
   }
 

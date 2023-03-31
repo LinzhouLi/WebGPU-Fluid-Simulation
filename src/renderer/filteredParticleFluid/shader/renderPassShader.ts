@@ -69,8 +69,8 @@ fn shading(
   let viewDirEye = normalize(-positionEye);
   let VoN = saturate(dot(viewDirEye, normalEye));
   let fresnel = Fresnel_Schlick(vec3<f32>(0.02), VoN); // F0 of water is 0.02
-  let attenuate = max(exp(-thickness * 0.5), 0.2);
-  let tintColor = vec3<f32>(6.0, 105.0, 217.0) / 256.0;
+  let attenuate = max(exp(-thickness), 0.2);
+  const tintColor = vec3<f32>(6.0, 105.0, 217.0) / 256.0;
 
   let reflectDirEye = reflect(-viewDirEye, normalEye);
   let refractDirEye = refract(-viewDirEye, normalEye, 0.7501875); // 1.0 / 1.333
@@ -79,7 +79,6 @@ fn shading(
   let reflectDirWorld = (camera.viewMatrixInverse * vec4<f32>(reflectDirEye, 0.0)).xyz;
   let refractDirWorld = (camera.viewMatrixInverse * vec4<f32>(refractDirEye, 0.0)).xyz;
 
-  let normalColor = textureSample(envMap, linearSampler, normalWorld).rgb;
   let reflectColor = textureSample(envMap, linearSampler, reflectDirWorld).rgb;
   let refractColor = textureSample(envMap, linearSampler, refractDirWorld).rgb;
 

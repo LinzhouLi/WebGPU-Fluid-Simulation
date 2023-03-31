@@ -127,10 +127,6 @@ class TextureFilter {
       compute: {
         module: device.createShaderModule({ code: this.computeShaderCode }),
         entryPoint: 'main',
-        // constants: {
-        //   width: this.textureSize[0],
-        //   height: this.textureSize[1]
-        // }
       }
     });
 

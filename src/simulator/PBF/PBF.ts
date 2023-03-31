@@ -49,6 +49,7 @@ class PBF extends PBFConfig {
 
   private gravityArray: Float32Array;
 
+  private static debug = false;
   private tempBuffer: GPUBuffer;
   private debugBuffer1: GPUBuffer;
   private debugBuffer2: GPUBuffer;
@@ -141,18 +142,20 @@ class PBF extends PBFConfig {
       this.gravityArray, 0
     );
 
-    this.tempBuffer = device.createBuffer({
-      size: this.particleCount * Float32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
-    });
-    this.debugBuffer1 = device.createBuffer({
-      size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
-    });
-    this.debugBuffer2 = device.createBuffer({
-      size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
-    });
+    if (PBF.debug) {
+      this.tempBuffer = device.createBuffer({
+        size: this.particleCount * Float32Array.BYTES_PER_ELEMENT,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+      });
+      this.debugBuffer1 = device.createBuffer({
+        size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+      });
+      this.debugBuffer2 = device.createBuffer({
+        size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+      });
+    }
 
   }
 
@@ -184,8 +187,7 @@ class PBF extends PBFConfig {
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // !!!
+        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
       ]
     });
 
@@ -195,8 +197,7 @@ class PBF extends PBFConfig {
         { binding: 0, resource: { buffer: this.positionPredict } },
         { binding: 1, resource: { buffer: this.deltaPosition } },
         { binding: 2, resource: { buffer: this.lambda } },
-        { binding: 3, resource: { buffer: this.neighborList } },
-        { binding: 4, resource: { buffer: this.tempBuffer } },
+        { binding: 3, resource: { buffer: this.neighborList } }
       ]
     });
 
@@ -389,46 +390,48 @@ class PBF extends PBFConfig {
 
   public async debug() {
 
-    const ce = device.createCommandEncoder();
-    ce.copyBufferToBuffer(
-      this.lambda, 0,
-      this.debugBuffer1, 0,
-      this.particleCount * Float32Array.BYTES_PER_ELEMENT
-    );
-    ce.copyBufferToBuffer(
-      this.tempBuffer, 0,
-      this.debugBuffer2, 0,
-      this.particleCount * Float32Array.BYTES_PER_ELEMENT
-    );
-    device.queue.submit([ ce.finish() ]);
+    if (PBF.debug) {
+      const ce = device.createCommandEncoder();
+      ce.copyBufferToBuffer(
+        this.lambda, 0,
+        this.debugBuffer1, 0,
+        this.particleCount * Float32Array.BYTES_PER_ELEMENT
+      );
+      ce.copyBufferToBuffer(
+        this.tempBuffer, 0,
+        this.debugBuffer2, 0,
+        this.particleCount * Float32Array.BYTES_PER_ELEMENT
+      );
+      device.queue.submit([ ce.finish() ]);
 
-    await this.debugBuffer1.mapAsync(GPUMapMode.READ);
-    const buffer1 = this.debugBuffer1.getMappedRange(0, this.particleCount * Float32Array.BYTES_PER_ELEMENT);
-    const array1 = new Float32Array(buffer1);
+      await this.debugBuffer1.mapAsync(GPUMapMode.READ);
+      const buffer1 = this.debugBuffer1.getMappedRange(0, this.particleCount * Float32Array.BYTES_PER_ELEMENT);
+      const array1 = new Float32Array(buffer1);
 
-    await this.debugBuffer2.mapAsync(GPUMapMode.READ);
-    const buffer2 = this.debugBuffer2.getMappedRange(0, this.particleCount * Float32Array.BYTES_PER_ELEMENT);
-    const array2 = new Float32Array(buffer2);
+      await this.debugBuffer2.mapAsync(GPUMapMode.READ);
+      const buffer2 = this.debugBuffer2.getMappedRange(0, this.particleCount * Float32Array.BYTES_PER_ELEMENT);
+      const array2 = new Float32Array(buffer2);
 
-    let min = array1[0]; let max = array1[0];
-    let min_index = 0; let max_index = 0;
-    array1.forEach((val, i) => {
-      if (val >= max) { max = val; max_index = i; }
-      if (val <= min) { min = val; min_index = i; }
-    });
-    console.log(min_index, min);
-    console.log(max_index, max);
+      let min = array1[0]; let max = array1[0];
+      let min_index = 0; let max_index = 0;
+      array1.forEach((val, i) => {
+        if (val >= max) { max = val; max_index = i; }
+        if (val <= min) { min = val; min_index = i; }
+      });
+      console.log(min_index, min);
+      console.log(max_index, max);
 
-    min = array2[0]; max = array2[0];
-    min_index = 0; max_index = 0;
-    array2.forEach((val, i) => {
-      if (val >= max) { max = val; max_index = i; }
-      if (val <= min) { min = val; min_index = i; }
-    });
-    console.log(min_index, min);
-    console.log(max_index, max);
+      min = array2[0]; max = array2[0];
+      min_index = 0; max_index = 0;
+      array2.forEach((val, i) => {
+        if (val >= max) { max = val; max_index = i; }
+        if (val <= min) { min = val; min_index = i; }
+      });
+      console.log(min_index, min);
+      console.log(max_index, max);
 
-    await this.neighborSearch.debug();
+      await this.neighborSearch.debug();
+    }
 
   }
 
