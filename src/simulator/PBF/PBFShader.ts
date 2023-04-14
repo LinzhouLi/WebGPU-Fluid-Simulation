@@ -54,7 +54,7 @@ fn random3(p: vec3<f32>) -> vec3<f32> {
 }
 
 fn boundary_rand(pos: vec3<f32>) -> vec3<f32> {
-  const EPS = 1e-3;
+  const EPS = 1e-4;
   let rand_vec3 = EPS * random3(pos);
   let bottom_bound = rand_vec3;
   let up_bound = 1.0 - rand_vec3;

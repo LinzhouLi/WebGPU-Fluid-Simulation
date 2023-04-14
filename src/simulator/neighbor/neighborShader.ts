@@ -25,7 +25,7 @@ ${GridStruct}
 @group(0) @binding(2) var<storage, read_write> particleSortIndex: array<u32>;
 @group(0) @binding(3) var<uniform> grid: Grid;
 
-@compute @workgroup_size(64, 1, 1)
+@compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
@@ -48,7 +48,7 @@ ${GridStruct}
 @group(0) @binding(5) var<storage, read_write> particleSortIndexCopy: array<u32>;
 @group(0) @binding(6) var<uniform> grid: Grid;
 
-@compute @workgroup_size(64, 1, 1)
+@compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
@@ -98,7 +98,7 @@ ${GridStruct}
 @group(0) @binding(5) var<storage, read_write> particleSortIndexCopy: array<u32>;
 @group(0) @binding(6) var<uniform> grid: Grid;
 
-@compute @workgroup_size(64, 1, 1)
+@compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
@@ -192,7 +192,7 @@ ${GridStruct}
 @group(0) @binding(5) var<storage, read_write> particleSortIndexCopy: array<u32>;
 @group(0) @binding(6) var<uniform> grid: Grid;
 
-@compute @workgroup_size(64, 1, 1)
+@compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }

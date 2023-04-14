@@ -61,13 +61,13 @@ class PBF extends PBFConfig {
 
   constructor() {
 
-    super(30 * 30 * 30);
+    super(34 * 34 * 34);
 
   }
 
   private createStorageData() {
 
-    const particlePerDim = 30;
+    const particlePerDim = 34;
     const range = 0.5;
     const particleDiam = range / particlePerDim;
     if (this.restDensity) {
@@ -114,7 +114,7 @@ class PBF extends PBFConfig {
     // create GPU Buffers
     // neighbor list buffer
     this.neighborList = device.createBuffer({
-      size: (PBF.MAX_NEIGHBOR_COUNT + 1) * this.particleCount * Uint32Array.BYTES_PER_ELEMENT,
+      size: PBF.MAX_NEIGHBOR_COUNT * this.particleCount * Uint32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
     });
     let attributeBufferDesp = {

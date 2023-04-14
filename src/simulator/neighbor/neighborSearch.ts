@@ -270,7 +270,7 @@ class NeighborSearch {
 
   public execute(passEncoder: GPUComputePassEncoder) {
 
-    const workgroupCount = Math.ceil(this.particleCount / 64);
+    const workgroupCount = Math.ceil(this.particleCount / 256);
 
     // particle insert
     passEncoder.setBindGroup(0, this.particleInsertBindGroup);

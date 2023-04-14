@@ -2,8 +2,8 @@ import { LagrangianSimulator } from '../LagrangianSimulator';
 
 abstract class PBFConfig extends LagrangianSimulator {
 
-  static MAX_NEIGHBOR_COUNT = 63;
-  static KERNEL_RADIUS = 0.04;
+  static MAX_NEIGHBOR_COUNT = 50;
+  static KERNEL_RADIUS = 0.025;
 
   protected constrainIterationCount = 5;
   protected timeStep = 1 / 150;
