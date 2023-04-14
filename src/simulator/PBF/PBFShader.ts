@@ -1,12 +1,5 @@
 import { PBFConfig } from './PBFConfig';
 
-const NeighborStruct = /* wgsl */`
-struct Neighbor {
-  count: u32,
-  particleIndex: array<u32, MaxNeighborCount>
-};
-`;
-
 
 const KernalPoly6 = /* wgsl */`
 fn kernalPoly6(r_len: f32) -> f32 {
@@ -82,7 +75,7 @@ ${Boundary}
 @group(0) @binding(2) var<storage, read_write> velocity: array<vec3<f32>>;
 @group(0) @binding(3) var<uniform> gravity: vec3<f32>;
 
-@compute @workgroup_size(64, 1, 1)
+@compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
@@ -104,23 +97,25 @@ override ParticleCount: u32;
 override ParticleVolume: f32;
 override ParticleVolume2: f32;
 override LambdaEPS: f32;
-${NeighborStruct}
 ${KernalPoly6}
 ${KernalSpikyGrad}
 
-@group(0) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
-@group(0) @binding(2) var<storage, read_write> lambda: array<f32>;
-@group(0) @binding(3) var<storage, read_write> neighborList: array<Neighbor>;
+@group(0) @binding(0) var<storage, read_write> neighborCount: array<u32>;
+@group(0) @binding(1) var<storage, read_write> neighborOffset: array<u32>;
+@group(0) @binding(2) var<storage, read_write> neighborList: array<u32>;
 
-@compute @workgroup_size(64, 1, 1)
+@group(1) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
+@group(1) @binding(2) var<storage, read_write> lambda: array<f32>;
+
+@compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
 
   let selfPosition = positionPredict[particleIndex];
-  let neighbor = neighborList[particleIndex];
-  let neighborCount = neighbor.count;
-  var neighborIndex: u32;
+  let nCount = neighborCount[particleIndex];
+  var nListIndex = neighborOffset[particleIndex];
+  var nParticleIndex = u32();
 
   var positionDelta: vec3<f32>;
   var positionDeltaLength: f32;
@@ -129,16 +124,18 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   var sum_grad_Pj_Ci_2 = f32();
   var density = f32();
 
-  for (var i: u32 = 0; i < neighborCount; i++) {
-    neighborIndex = neighbor.particleIndex[i];
-    positionDelta = selfPosition - positionPredict[neighborIndex];
+  for (var i: u32 = 0; i < nCount; i++) {
+    nParticleIndex = neighborList[nListIndex];
+
+    positionDelta = selfPosition - positionPredict[nParticleIndex];
     positionDeltaLength = length(positionDelta);
 
     grad_Pk = kernalSpikyGrad(positionDelta, positionDeltaLength);
     grad_Pi_Ci += grad_Pk;
     sum_grad_Pj_Ci_2 += dot(grad_Pk, grad_Pk);
-
     density += kernalPoly6(positionDeltaLength);
+
+    nListIndex++;
   }
 
   let constrain = max(0.0, density * ParticleVolume - 1.0);
@@ -157,25 +154,27 @@ const MaxNeighborCount: u32 = ${PBFConfig.MAX_NEIGHBOR_COUNT};
 override ParticleCount: u32;
 override ParticleVolume: f32;
 override ScorrCoef: f32;
-${NeighborStruct}
 ${KernalPoly6}
 ${KernalSpikyGrad}
 
-@group(0) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
-@group(0) @binding(1) var<storage, read_write> deltaPosition: array<vec3<f32>>;
-@group(0) @binding(2) var<storage, read_write> lambda: array<f32>;
-@group(0) @binding(3) var<storage, read_write> neighborList: array<Neighbor>;
+@group(0) @binding(0) var<storage, read_write> neighborCount: array<u32>;
+@group(0) @binding(1) var<storage, read_write> neighborOffset: array<u32>;
+@group(0) @binding(2) var<storage, read_write> neighborList: array<u32>;
 
-@compute @workgroup_size(64, 1, 1)
+@group(1) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
+@group(1) @binding(1) var<storage, read_write> deltaPosition: array<vec3<f32>>;
+@group(1) @binding(2) var<storage, read_write> lambda: array<f32>;
+
+@compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
 
   let selfPosition = positionPredict[particleIndex];
   let selfLambda = lambda[particleIndex];
-  let neighbor = neighborList[particleIndex];
-  let neighborCount = neighbor.count;
-  var neighborIndex: u32;
+  let nCount = neighborCount[particleIndex];
+  var nListIndex = neighborOffset[particleIndex];
+  var nParticleIndex = u32();
 
   var positionDelta: vec3<f32>;
   var positionDeltaLength: f32;
@@ -183,18 +182,20 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   var scorr: f32;
   var positionUpdate = vec3<f32>();
 
-  for (var i: u32 = 0; i < neighborCount; i++) {
-    neighborIndex = neighbor.particleIndex[i];
-    positionDelta = selfPosition - positionPredict[neighborIndex];
+  for (var i: u32 = 0; i < nCount; i++) {
+    nParticleIndex = neighborList[nListIndex];
+
+    positionDelta = selfPosition - positionPredict[nParticleIndex];
     positionDeltaLength = length(positionDelta);
-    neighborLambda = lambda[neighborIndex];
+    neighborLambda = lambda[nParticleIndex];
 
     scorr = kernalPoly6(positionDeltaLength); // suppose scorr_n == 4
     scorr *= scorr;
     scorr *= ScorrCoef * scorr;
-
     positionUpdate += (selfLambda + neighborLambda) * // + scorr) *
       kernalSpikyGrad(positionDelta, positionDeltaLength);
+
+    nListIndex++;
   }
 
   deltaPosition[particleIndex] = 0.5 * positionUpdate * ParticleVolume;
@@ -207,10 +208,10 @@ const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
 override ParticleCount: u32;
 ${Boundary}
 
-@group(0) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
-@group(0) @binding(1) var<storage, read_write> deltaPosition: array<vec3<f32>>;
+@group(1) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
+@group(1) @binding(1) var<storage, read_write> deltaPosition: array<vec3<f32>>;
 
-@compute @workgroup_size(64, 1, 1)
+@compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
@@ -226,11 +227,11 @@ const AttributeUpdateShader = /* wgsl */`
 override ParticleCount: u32;
 override InvDeltaT: f32;
 
-@group(0) @binding(0) var<storage, read_write> position: array<vec3<f32>>;
-@group(0) @binding(1) var<storage, read_write> positionPredict: array<vec3<f32>>;
-@group(0) @binding(3) var<storage, read_write> velocityCopy: array<vec3<f32>>;
+@group(1) @binding(0) var<storage, read_write> position: array<vec3<f32>>;
+@group(1) @binding(1) var<storage, read_write> positionPredict: array<vec3<f32>>;
+@group(1) @binding(3) var<storage, read_write> velocityCopy: array<vec3<f32>>;
 
-@compute @workgroup_size(64, 1, 1)
+@compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
@@ -251,37 +252,42 @@ const MaxNeighborCount: u32 = ${PBFConfig.MAX_NEIGHBOR_COUNT};
 override ParticleCount: u32;
 override ParticleVolume: f32;
 override XSPHCoef: f32;
-${NeighborStruct}
 ${KernalPoly6}
 
-@group(0) @binding(0) var<storage, read_write> position: array<vec3<f32>>;
-@group(0) @binding(2) var<storage, read_write> velocity: array<vec3<f32>>;
-@group(0) @binding(3) var<storage, read_write> velocityCopy: array<vec3<f32>>;
-@group(0) @binding(4) var<storage, read_write> neighborList: array<Neighbor>;
+@group(0) @binding(0) var<storage, read_write> neighborCount: array<u32>;
+@group(0) @binding(1) var<storage, read_write> neighborOffset: array<u32>;
+@group(0) @binding(2) var<storage, read_write> neighborList: array<u32>;
 
-@compute @workgroup_size(64, 1, 1)
+@group(1) @binding(0) var<storage, read_write> position: array<vec3<f32>>;
+@group(1) @binding(2) var<storage, read_write> velocity: array<vec3<f32>>;
+@group(1) @binding(3) var<storage, read_write> velocityCopy: array<vec3<f32>>;
+
+@compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
 
   let selfPosition = position[particleIndex];
   let selfVelocity = velocityCopy[particleIndex];
-  let neighbor = neighborList[particleIndex];
-  let neighborCount = neighbor.count;
-  var neighborIndex: u32;
+  let nCount = neighborCount[particleIndex];
+  var nListIndex = neighborOffset[particleIndex];
+  var nParticleIndex = u32();
 
   var positionDelta: vec3<f32>;
   var positionDeltaLength: f32;
   var velocityDelta: vec3<f32>;
   var velocityUpdate = vec3<f32>();
 
-  for (var i: u32 = 0; i < neighborCount; i++) {
-    neighborIndex = neighbor.particleIndex[i];
-    positionDelta = selfPosition - position[neighborIndex];
-    positionDeltaLength = length(positionDelta);
-    velocityDelta = velocityCopy[neighborIndex] - selfVelocity;
+  for (var i: u32 = 0; i < nCount; i++) {
+    nParticleIndex = neighborList[nListIndex];
 
+    positionDelta = selfPosition - position[nParticleIndex];
+    positionDeltaLength = length(positionDelta);
+
+    velocityDelta = velocityCopy[nParticleIndex] - selfVelocity;
     velocityUpdate += velocityDelta * kernalPoly6(positionDeltaLength);
+
+    nListIndex++;
   }
 
   velocity[particleIndex] = selfVelocity + XSPHCoef * velocityUpdate * ParticleVolume;

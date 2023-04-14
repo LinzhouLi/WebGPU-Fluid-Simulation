@@ -34,9 +34,11 @@ class PBF extends PBFConfig {
   private velocityCopy: GPUBuffer;
   private gravity: GPUBuffer;
 
+  private neighborBindGroupLayout: GPUBindGroupLayout;
   private advectionBindGroupLayout: GPUBindGroupLayout;
   private constrainBindGroupLayout: GPUBindGroupLayout;
   private viscosityBindGroupLayout: GPUBindGroupLayout;
+  private neighborBindGroup: GPUBindGroup;
   private advectionBindGroup: GPUBindGroup;
   private constrainBindGroup: GPUBindGroup;
   private viscosityBindGroup: GPUBindGroup;
@@ -171,6 +173,24 @@ class PBF extends PBFConfig {
 
   private createBindGroup() {
 
+    // neighbor
+    this.neighborBindGroupLayout = device.createBindGroupLayout({
+      entries: [
+        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+      ]
+    });
+
+    this.neighborBindGroup = device.createBindGroup({
+      layout: this.neighborBindGroupLayout,
+      entries: [
+        { binding: 0, resource: { buffer: this.neighborCount } },
+        { binding: 1, resource: { buffer: this.neighborOffset } },
+        { binding: 2, resource: { buffer: this.neighborList } }
+      ]
+    });
+
     // advection
     this.advectionBindGroupLayout = device.createBindGroupLayout({
       entries: [
@@ -196,8 +216,7 @@ class PBF extends PBFConfig {
       entries: [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
       ]
     });
 
@@ -206,8 +225,7 @@ class PBF extends PBFConfig {
       entries: [
         { binding: 0, resource: { buffer: this.positionPredict } },
         { binding: 1, resource: { buffer: this.deltaPosition } },
-        { binding: 2, resource: { buffer: this.lambda } },
-        { binding: 3, resource: { buffer: this.neighborList } }
+        { binding: 2, resource: { buffer: this.lambda } }
       ]
     });
 
@@ -218,7 +236,6 @@ class PBF extends PBFConfig {
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
       ]
     });
 
@@ -228,8 +245,7 @@ class PBF extends PBFConfig {
         { binding: 0, resource: { buffer: this.particlePositionBuffer } },
         { binding: 1, resource: { buffer: this.positionPredict } },
         { binding: 2, resource: { buffer: this.velocity } },
-        { binding: 3, resource: { buffer: this.velocityCopy } },
-        { binding: 4, resource: { buffer: this.neighborList } },
+        { binding: 3, resource: { buffer: this.velocityCopy } }
       ]
     });
 
@@ -246,7 +262,9 @@ class PBF extends PBFConfig {
       PBF.KERNEL_RADIUS
     );
     await this.neighborSearch.initResource(
-      this.positionPredict,  // this.positionPredictCopy,
+      this.positionPredict, 
+      this.neighborCount, 
+      this.neighborOffset,
       this.neighborList
     );
 
@@ -282,7 +300,7 @@ class PBF extends PBFConfig {
 
     // constrain
     const constrainPipelineLayout = device.createPipelineLayout({
-      bindGroupLayouts: [this.constrainBindGroupLayout]
+      bindGroupLayouts: [this.neighborBindGroupLayout, this.constrainBindGroupLayout]
     });
     this.lambdaCalculationPipeline = await device.createComputePipelineAsync({
       label: 'Lambda Calculation Pipeline (PBF)',
@@ -329,7 +347,7 @@ class PBF extends PBFConfig {
 
     // viscosity
     const viscosityPipelineLayout = device.createPipelineLayout({
-      bindGroupLayouts: [this.viscosityBindGroupLayout]
+      bindGroupLayouts: [this.neighborBindGroupLayout, this.viscosityBindGroupLayout]
     });
     this.attributeUpdatePipeline = await device.createComputePipelineAsync({
       label: 'Attribute Update Pipeline (PBF)',
@@ -365,7 +383,7 @@ class PBF extends PBFConfig {
     this.neighborSearch.clearBuffer(commandEncoder);
     
     const passEncoder = commandEncoder.beginComputePass();
-    const workgroupCount = Math.ceil(this.particleCount / 64);
+    const workgroupCount = Math.ceil(this.particleCount / 256);
 
     passEncoder.setBindGroup(0, this.advectionBindGroup);
     passEncoder.setPipeline(this.forceApplyPipeline);
@@ -373,7 +391,8 @@ class PBF extends PBFConfig {
 
     this.neighborSearch.execute(passEncoder);
 
-    passEncoder.setBindGroup(0, this.constrainBindGroup);
+    passEncoder.setBindGroup(0, this.neighborBindGroup);
+    passEncoder.setBindGroup(1, this.constrainBindGroup);
     for (let i = 0; i < this.constrainIterationCount; i++) {
       passEncoder.setPipeline(this.lambdaCalculationPipeline);
       passEncoder.dispatchWorkgroups(workgroupCount);
@@ -385,7 +404,7 @@ class PBF extends PBFConfig {
       passEncoder.dispatchWorkgroups(workgroupCount);
     }
 
-    passEncoder.setBindGroup(0, this.viscosityBindGroup);
+    passEncoder.setBindGroup(1, this.viscosityBindGroup);
     passEncoder.setPipeline(this.attributeUpdatePipeline);
     passEncoder.dispatchWorkgroups(workgroupCount);
 

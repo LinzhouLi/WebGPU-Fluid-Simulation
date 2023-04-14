@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { device } from '../../controller';
 import { PBFConfig } from '../PBF/PBFConfig';
 import { ExclusiveScan } from './exclusiveScan';
-import { ParticleInsertShader, CountingSortShader, NeighborListShader } from './neighborShader';
+import { ParticleInsertShader, CountingSortShader, NeighborCountShader, NeighborListShader } from './neighborShader';
 
 class NeighborSearch {
 
@@ -16,19 +16,30 @@ class NeighborSearch {
 
   private particlePosition: GPUBuffer;
   private neighborList: GPUBuffer;
+  private neighborCount: GPUBuffer;
+  private neighborOffset: GPUBuffer;
+
   private cellParticleCount: GPUBuffer;
   private cellOffset: GPUBuffer;
   private particleSortIndex: GPUBuffer;
   private particleSortIndexCopy: GPUBuffer;
   private gridInfo: GPUBuffer;
 
-  private bindGroup: GPUBindGroup;
+  private particleInsertBindGroupLayout: GPUBindGroupLayout;
+  private countingBindGroupLayout: GPUBindGroupLayout;
+  private neighborListBindGroupLayout: GPUBindGroupLayout;
+
+  private particleInsertBindGroup: GPUBindGroup;
+  private countingBindGroup: GPUBindGroup;
+  private neighborListBindGroup: GPUBindGroup;
 
   private particleInsertPipeline: GPUComputePipeline;
   private countingSortPipeline: GPUComputePipeline;
+  private neighborCountPipeline: GPUComputePipeline;
   private neighborListPipeline: GPUComputePipeline;
 
-  private scan: ExclusiveScan;
+  private cellScan: ExclusiveScan;
+  private particleScan: ExclusiveScan;
 
   private static debug = false;
   private debugBuffer1: GPUBuffer;
@@ -97,17 +108,30 @@ class NeighborSearch {
 
   }
 
-  public async initResource(
-    particlePosition: GPUBuffer, // particlePositionSort: GPUBuffer,
-    neighborList: GPUBuffer
-  ) {
+  private createBindGroup() {
 
-    this.particlePosition = particlePosition;
-    this.neighborList = neighborList;
-    this.createStorageData();
+    // particle insert
+    this.particleInsertBindGroupLayout = device.createBindGroupLayout({
+      entries: [
+        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
+      ]
+    });
 
-    // bind group
-    const bindGroupLayout = device.createBindGroupLayout({
+    this.particleInsertBindGroup = device.createBindGroup({
+      layout: this.particleInsertBindGroupLayout,
+      entries: [
+        { binding: 0, resource: { buffer: this.particlePosition } },
+        { binding: 1, resource: { buffer: this.cellParticleCount } },
+        { binding: 2, resource: { buffer: this.particleSortIndex } },
+        { binding: 3, resource: { buffer: this.gridInfo } },
+      ]
+    });
+
+    // counting sort + neighbor count
+    this.countingBindGroupLayout = device.createBindGroupLayout({
       entries: [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
@@ -119,12 +143,11 @@ class NeighborSearch {
       ]
     });
 
-    this.bindGroup = device.createBindGroup({
-      layout: bindGroupLayout,
+    this.countingBindGroup = device.createBindGroup({
+      layout: this.countingBindGroupLayout,
       entries: [
-        { binding: 0, resource: { buffer: particlePosition } },
-        // { binding: 1, resource: { buffer: particlePositionSort } },
-        { binding: 1, resource: { buffer: neighborList } },
+        { binding: 0, resource: { buffer: this.particlePosition } },
+        { binding: 1, resource: { buffer: this.neighborCount } },
         { binding: 2, resource: { buffer: this.cellParticleCount } },
         { binding: 3, resource: { buffer: this.cellOffset } },
         { binding: 4, resource: { buffer: this.particleSortIndex } },
@@ -133,10 +156,39 @@ class NeighborSearch {
       ]
     });
 
-    // pipeline
+    // neighbor search
+    this.neighborListBindGroupLayout = device.createBindGroupLayout({
+      entries: [
+        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
+      ]
+    });
+
+    this.neighborListBindGroup = device.createBindGroup({
+      layout: this.neighborListBindGroupLayout,
+      entries: [
+        { binding: 0, resource: { buffer: this.particlePosition } },
+        { binding: 1, resource: { buffer: this.neighborOffset } },
+        { binding: 2, resource: { buffer: this.neighborList } },
+        { binding: 3, resource: { buffer: this.cellParticleCount } },
+        { binding: 4, resource: { buffer: this.cellOffset } },
+        { binding: 5, resource: { buffer: this.particleSortIndexCopy } },
+        { binding: 6, resource: { buffer: this.gridInfo } },
+      ]
+    })
+
+  }
+
+  private async createPipeline() {
+
     this.particleInsertPipeline = await device.createComputePipelineAsync({
       label: 'Particle Insert Pipeline (Neighbor Search)',
-      layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+      layout: device.createPipelineLayout({ bindGroupLayouts: [this.particleInsertBindGroupLayout] }),
       compute: {
         module: device.createShaderModule({ code: ParticleInsertShader }),
         entryPoint: 'main',
@@ -148,7 +200,7 @@ class NeighborSearch {
 
     this.countingSortPipeline = await device.createComputePipelineAsync({
       label: 'Counting Sort Pipeline (Neighbor Search)',
-      layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+      layout: device.createPipelineLayout({ bindGroupLayouts: [this.countingBindGroupLayout] }),
       compute: {
         module: device.createShaderModule({ code: CountingSortShader }),
         entryPoint: 'main',
@@ -158,9 +210,22 @@ class NeighborSearch {
       }
     });
 
+    this.neighborCountPipeline = await device.createComputePipelineAsync({
+      label: 'Neighbor Count Pipeline (Neighbor Search)',
+      layout: device.createPipelineLayout({ bindGroupLayouts: [this.countingBindGroupLayout] }),
+      compute: {
+        module: device.createShaderModule({ code: NeighborCountShader }),
+        entryPoint: 'main',
+        constants: {
+          ParticleCount: this.particleCount,
+          SearchRadiusSqr: this.searchRadius * this.searchRadius
+        }
+      }
+    });
+
     this.neighborListPipeline = await device.createComputePipelineAsync({
       label: 'Neighbor List Pipeline (Neighbor Search)',
-      layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+      layout: device.createPipelineLayout({ bindGroupLayouts: [this.neighborListBindGroupLayout] }),
       compute: {
         module: device.createShaderModule({ code: NeighborListShader }),
         entryPoint: 'main',
@@ -169,10 +234,31 @@ class NeighborSearch {
           SearchRadiusSqr: this.searchRadius * this.searchRadius
         }
       }
-    })
+    });
 
-    this.scan = new ExclusiveScan(this.cellParticleCount, this.cellOffset, this.gridCellCountAlignment);
-    await this.scan.initResource();
+  }
+
+  public async initResource(
+    particlePosition: GPUBuffer,
+    neighborCount: GPUBuffer,
+    neighborOffset: GPUBuffer,
+    neighborList: GPUBuffer
+  ) {
+
+    this.particlePosition = particlePosition;
+    this.neighborCount = neighborCount;
+    this.neighborOffset = neighborOffset;
+    this.neighborList = neighborList;
+
+    this.createStorageData();
+    this.createBindGroup();
+    await this.createPipeline();
+
+    const particleCountAlignment = Math.ceil(this.particleCount / ExclusiveScan.ARRAY_ALIGNMENT) * ExclusiveScan.ARRAY_ALIGNMENT;
+    this.cellScan = new ExclusiveScan(this.cellParticleCount, this.cellOffset, this.gridCellCountAlignment);
+    this.particleScan = new ExclusiveScan(this.neighborCount, this.neighborOffset, particleCountAlignment);
+    await this.cellScan.initResource();
+    await this.particleScan.initResource();
 
   }
 
@@ -185,22 +271,30 @@ class NeighborSearch {
   public execute(passEncoder: GPUComputePassEncoder) {
 
     const workgroupCount = Math.ceil(this.particleCount / 64);
-    passEncoder.setBindGroup(0, this.bindGroup);
 
     // particle insert
+    passEncoder.setBindGroup(0, this.particleInsertBindGroup);
     passEncoder.setPipeline(this.particleInsertPipeline);
     passEncoder.dispatchWorkgroups(workgroupCount);
 
-    // exclusive scan: CellOffset[] = prefix sum of CellParticleCount[]
-    this.scan.execute(passEncoder);
+    // CellOffset[] = prefix sum of CellParticleCount[]
+    this.cellScan.execute(passEncoder);
 
-    passEncoder.setBindGroup(0, this.bindGroup);
+    passEncoder.setBindGroup(0, this.countingBindGroup);
 
     // counting sort
     passEncoder.setPipeline(this.countingSortPipeline);
     passEncoder.dispatchWorkgroups(workgroupCount);
 
+    // neighbor count
+    passEncoder.setPipeline(this.neighborCountPipeline);
+    passEncoder.dispatchWorkgroups(workgroupCount);
+
+    // neighborOffset[] = prefix sum of neighborCount[]
+    this.particleScan.execute(passEncoder);
+
     // neighbor list
+    passEncoder.setBindGroup(0, this.neighborListBindGroup);
     passEncoder.setPipeline(this.neighborListPipeline);
     passEncoder.dispatchWorkgroups(workgroupCount);
 
@@ -274,7 +368,7 @@ class NeighborSearch {
 
     }
     
-    await this.scan.debug()
+    await this.cellScan.debug()
 
   }
 
