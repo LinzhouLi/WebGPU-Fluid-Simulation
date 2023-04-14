@@ -2,16 +2,16 @@ import { LagrangianSimulator } from '../LagrangianSimulator';
 
 abstract class PBFConfig extends LagrangianSimulator {
 
-  static MAX_NEIGHBOR_COUNT = 47;
+  static MAX_NEIGHBOR_COUNT = 63;
   static KERNEL_RADIUS = 0.04;
 
   protected constrainIterationCount = 5;
-  protected timeStep = 1 / 250;
+  protected timeStep = 1 / 150;
   protected lambdaEPS = 1e-6;
   protected scorrCoefK = 1e-6;
-  protected scorrCoefDq = 0.3; // [0.1, 0.3]
+  protected scorrCoefDq = 1e-4; // [0.1, 0.3]
   protected scorrCoefN = 4; // fixed
-  protected XSPHCoef = 0.15;
+  protected XSPHCoef = 0.20;
   protected restDensity: number = 1000.0;
   protected particleVolume: number;
   protected particleWeight: number;

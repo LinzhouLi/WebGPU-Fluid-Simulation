@@ -7,6 +7,7 @@ import {
   ConstrainSolveShader,   ConstrainApplyShader,
   AttributeUpdateShader,  XSPHShader
 } from './PBFShader';
+import { ExclusiveScan } from '../neighbor/exclusiveScan';
 
 
 function kernalPoly6(r_len: number) {
@@ -23,8 +24,10 @@ function kernalPoly6(r_len: number) {
 class PBF extends PBFConfig {
 
   private neighborList: GPUBuffer;
+  private neighborCount: GPUBuffer;
+  private neighborOffset: GPUBuffer;
+
   private positionPredict: GPUBuffer;
-  // private positionPredictCopy: GPUBuffer;
   private deltaPosition: GPUBuffer;
   private lambda: GPUBuffer;
   private velocity: GPUBuffer;
@@ -56,17 +59,17 @@ class PBF extends PBFConfig {
 
   constructor() {
 
-    super(25 * 25 * 25);
+    super(30 * 30 * 30);
 
   }
 
   private createStorageData() {
 
-    const particlePerDim = 25;
+    const particlePerDim = 30;
     const range = 0.5;
     const particleDiam = range / particlePerDim;
     if (this.restDensity) {
-      this.particleVolume = 0.8 * particleDiam * particleDiam * particleDiam;
+      this.particleVolume = 0.98 * particleDiam * particleDiam * particleDiam;
       this.particleWeight = this.particleVolume * this.restDensity;
     }
     console.log(this.particleWeight, this.restDensity);
@@ -112,9 +115,15 @@ class PBF extends PBFConfig {
       size: (PBF.MAX_NEIGHBOR_COUNT + 1) * this.particleCount * Uint32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
     });
+    let attributeBufferDesp = {
+      size: Math.ceil(this.particleCount / ExclusiveScan.ARRAY_ALIGNMENT) * ExclusiveScan.ARRAY_ALIGNMENT * Float32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+    } as GPUBufferDescriptor;
+    this.neighborCount = device.createBuffer(attributeBufferDesp);
+    this.neighborOffset = device.createBuffer(attributeBufferDesp);
 
     // vec3/vec4 particle attribute buffer
-    const attributeBufferDesp = {
+    attributeBufferDesp = {
       size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
     } as GPUBufferDescriptor;
@@ -125,10 +134,11 @@ class PBF extends PBFConfig {
     this.velocityCopy = device.createBuffer(attributeBufferDesp);
 
     // f32 particle attribute buffer
-    this.lambda = device.createBuffer({
+    attributeBufferDesp = {
       size: this.particleCount * Float32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
-    })
+    };
+    this.lambda = device.createBuffer(attributeBufferDesp);
 
     // gravity buffer
     this.gravity = device.createBuffer({

@@ -49,11 +49,30 @@ fn boundary(pos: vec3<f32>) -> vec3<f32> {
   const BOTTOM = vec3<f32>(EPS);
   return max(min(pos, UP), BOTTOM);
 }
+
+fn random(uv: vec2<f32>) -> f32 {
+	return fract(sin(dot(uv, vec2<f32>(12.9898, 78.233))) * 43758.5453);
+}
+
+fn random3(p: vec3<f32>) -> vec3<f32> {
+  const a = vec2<f32>(12.9898, 78.233);
+  let b = vec3<f32>(dot(p.yz, a), dot(p.xz, a), dot(p.xy, a));
+  return fract(sin(b) * 43758.5453);
+}
+
+fn boundary_rand(pos: vec3<f32>) -> vec3<f32> {
+  const EPS = 1e-3;
+  let rand_vec3 = EPS * random3(pos);
+  let bottom_bound = rand_vec3;
+  let up_bound = 1.0 - rand_vec3;
+  return max(min(pos, up_bound), bottom_bound);
+}
 `;
 
 
 /********************* Advection *********************/
 const ForceApplyShader = /* wgsl */`
+const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
 override ParticleCount: u32;
 override DeltaT: f32;
 ${Boundary}
@@ -68,7 +87,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
   let vel = velocity[particleIndex] + DeltaT * gravity;
-  let pos = boundary(position[particleIndex] + DeltaT * vel);
+  let pos = boundary_rand(position[particleIndex] + DeltaT * vel);
   positionPredict[particleIndex] = pos;
   return;
 }
@@ -178,12 +197,13 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
       kernalSpikyGrad(positionDelta, positionDeltaLength);
   }
 
-  deltaPosition[particleIndex] = positionUpdate * ParticleVolume;
+  deltaPosition[particleIndex] = 0.5 * positionUpdate * ParticleVolume;
   return;
 }
 `;
 
 const ConstrainApplyShader = /* wgsl */`
+const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
 override ParticleCount: u32;
 ${Boundary}
 
@@ -194,7 +214,7 @@ ${Boundary}
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
-  let pos = boundary(positionPredict[particleIndex] + deltaPosition[particleIndex]);
+  let pos = boundary_rand(positionPredict[particleIndex] + deltaPosition[particleIndex]);
   positionPredict[particleIndex] = pos;
   return;
 }
