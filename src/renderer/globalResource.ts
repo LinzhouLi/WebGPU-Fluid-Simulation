@@ -13,7 +13,7 @@ class GlobalResource {
   private light: THREE.PointLight | THREE.DirectionalLight;
 
   private resourceAttributes: string[]; // resource name
-  private resourceCPUData: Record<string, BufferData | TextureData | TextureArrayData>; // resource in CPU
+  private resourceData: Record<string, BufferData | TextureData | TextureArrayData>; // resource in CPU
   
   public resource: Record<string, GPUBuffer | GPUTexture | GPUSampler>; // resource in GPU
 
@@ -34,15 +34,6 @@ class GlobalResource {
         usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
         size: [canvasSize.width, canvasSize.height],
         dimension: '2d' as GPUTextureDimension,
-        format: 'depth32float' as GPUTextureFormat,
-      },
-
-      frameResult: {
-        type: 'texture' as ResourceType,
-        label: 'Render Frame Result',
-        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
-        size: [canvasSize.width, canvasSize.height],
-        dimension: canvasFormat as GPUTextureDimension,
         format: 'depth32float' as GPUTextureFormat,
       },
   
@@ -137,7 +128,7 @@ class GlobalResource {
       "skybox/front.jpg", "skybox/back.jpg"  // pz nz
     ]);
     
-    this.resourceCPUData = {
+    this.resourceData = {
       camera: { // update per frame
         value: this.initCameraResource()
       },
@@ -153,7 +144,7 @@ class GlobalResource {
       }
     }
     
-    this.resource = await resourceFactory.createResource(this.resourceAttributes, this.resourceCPUData);
+    this.resource = await resourceFactory.createResource(this.resourceAttributes, this.resourceData);
 
   }
 
@@ -162,7 +153,7 @@ class GlobalResource {
     // camera
     this.camera.position.setFromMatrixPosition(this.camera.matrixWorld);
 
-    const cameraBufferData = this.resourceCPUData.camera as BufferData;
+    const cameraBufferData = this.resourceData.camera as BufferData;
     cameraBufferData.value.set([
       ...this.camera.position.toArray(), 0,
       ...this.camera.matrixWorldInverse.toArray(),

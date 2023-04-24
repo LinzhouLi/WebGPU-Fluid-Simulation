@@ -9,9 +9,9 @@ import { vertexShader, fragmentShader } from './shader';
 class ParticleFluid {
 
   private static ResourceFormats = {
-    material: {
+    sphereMaterial: {
       type: 'buffer' as ResourceType,
-      label: 'Material Structure', 
+      label: 'Sphere Material Structure', 
       visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
       usage:  GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       layout: { 
@@ -67,20 +67,17 @@ class ParticleFluid {
 
     const material = this.spriteMesh.material as THREE.MeshPhysicalMaterial;
 
-    this.resourceAttributes = ['material', 'particlePosition'];
+    this.resourceAttributes = ['sphereMaterial', 'particlePosition'];
     this.resourceCPUData = {
-      material: { 
+      sphereMaterial: { 
         value: new Float32Array([
-          this.radius,
-          material.metalness, 
-          material.specularIntensity, 
-          material.roughness, // fix bug: don't need alignment
+          this.radius, 0, 0, 0,
           ...material.color.toArray(), 0 // fix bug: bind group is too small!
         ])
       }
     };
     
-    this.resource = await resourceFactory.createResource(['material'], this.resourceCPUData);
+    this.resource = await resourceFactory.createResource(['sphereMaterial'], this.resourceCPUData);
     this.resource.particlePosition = this.simulator.particlePositionBuffer;
     
   }
@@ -118,7 +115,7 @@ class ParticleFluid {
         resource: { buffer: globalResource.camera as GPUBuffer },
       }, { // material
         binding: 1,
-        resource: { buffer: this.resource.material as GPUBuffer }
+        resource: { buffer: this.resource.sphereMaterial as GPUBuffer }
       }, { // instance positions
         binding: 2,
         resource: { buffer: this.simulator.particlePositionBuffer }

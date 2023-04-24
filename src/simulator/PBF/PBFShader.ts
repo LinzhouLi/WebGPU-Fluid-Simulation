@@ -15,15 +15,6 @@ fn kernalPoly6(r_len: f32) -> f32 {
 }
 `;
 
-const KernalSpiky = /* wgsl */`
-fn kernalSpiky(r_len: f32) -> f32 {
-  const coef = 15.0 / (PI * pow(KernelRadius, 6));
-  let t = KernelRadius - r_len;
-  let x = select( 0.0, t * t * t, r_len <= KernelRadius );
-  return coef * x;
-}
-`;
-
 const KernalSpikyGrad = /* wgsl */`
 fn kernalSpikyGrad(r: vec3<f32>, r_len: f32) -> vec3<f32> {
   const coef = -45.0 / (PI * pow(KernelRadius, 6));
@@ -93,10 +84,15 @@ const PI: f32 = ${Math.PI};
 const EPS: f32 = 1e-6;
 const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
 const MaxNeighborCount: u32 = ${PBFConfig.MAX_NEIGHBOR_COUNT};
+const GridSize: vec3<f32> = vec3<f32>(${PBFConfig.BOUNDARY_GRID[0]}, ${PBFConfig.BOUNDARY_GRID[1]}, ${PBFConfig.BOUNDARY_GRID[2]});
+const GridSizeU: vec3<u32> = vec3<u32>(GridSize);
+const GridSpaceSize: vec3<f32> = 1.0 / GridSize;
+
 override ParticleCount: u32;
 override ParticleVolume: f32;
 override ParticleVolume2: f32;
 override LambdaEPS: f32;
+
 ${KernalPoly6}
 ${KernalSpikyGrad}
 

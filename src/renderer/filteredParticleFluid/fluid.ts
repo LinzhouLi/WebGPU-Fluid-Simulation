@@ -6,7 +6,7 @@ import { ResourceFactory } from '../../common/resourceFactory';
 import { LagrangianSimulator } from '../../simulator/LagrangianSimulator';
 import { ParicleRasterizer } from './paricleRasterizer';
 import { TextureFilter } from './textureFilter';
-import { ScreenSpaceRenderer } from './ScreenSpaceRenderer';
+import { ScreenSpaceRenderer } from './screenSpaceRenderer';
 
 class FilteredParticleFluid {
 

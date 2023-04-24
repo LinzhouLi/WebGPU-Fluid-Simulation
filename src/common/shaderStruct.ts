@@ -19,9 +19,6 @@ struct DirectionalLight {
 const SphereMaterial = /* wgsl */`
 struct SphereMaterial {
   sphereRadius: f32,
-  metalness: f32,
-  specularIntensity: f32,
-  roughness: f32,
   color: vec3<f32>
 };
 `;

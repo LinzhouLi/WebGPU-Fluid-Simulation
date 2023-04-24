@@ -8,6 +8,7 @@ import {
   AttributeUpdateShader,  XSPHShader
 } from './PBFShader';
 import { ExclusiveScan } from '../neighbor/exclusiveScan';
+import { BoundaryModel } from '../boundary/volumeMap';
 
 
 function kernalPoly6(r_len: number) {
@@ -50,6 +51,7 @@ class PBF extends PBFConfig {
   private attributeUpdatePipeline: GPUComputePipeline;
   private XSPHPipeline: GPUComputePipeline;
 
+  private boundaryModel: BoundaryModel;
   private neighborSearch: NeighborSearch;
 
   private gravityArray: Float32Array;
@@ -74,7 +76,7 @@ class PBF extends PBFConfig {
       this.particleVolume = 0.98 * particleDiam * particleDiam * particleDiam;
       this.particleWeight = this.particleVolume * this.restDensity;
     }
-    console.log(this.particleWeight, this.restDensity);
+    // console.log(this.particleWeight, this.restDensity);
 
     // set initial particle position
     let positionArray = new Float32Array(4 * this.particleCount);
@@ -96,20 +98,20 @@ class PBF extends PBFConfig {
       4 * this.particleCount
     );
 
-    let density = 0;
-    let k = (10 * particlePerDim * particlePerDim + 10 * particlePerDim + 10);
-    let pos = [positionArray[4*k], positionArray[4*k+1], positionArray[4*k+2]];
-    for (let i = 0; i < this.particleCount; i++) {
-      let npos = [
-        positionArray[4*i] - pos[0], 
-        positionArray[4*i+1] - pos[1], 
-        positionArray[4*i+2] - pos[2]
-      ];
-      let len = Math.sqrt(npos[0]*npos[0] + npos[1]*npos[1] + npos[2]*npos[2]);
-      density += kernalPoly6(len);
-    }
-    density *= this.particleWeight;
-    console.log(density, this.restDensity);
+    // let density = 0;
+    // let k = (10 * particlePerDim * particlePerDim + 10 * particlePerDim + 10);
+    // let pos = [positionArray[4*k], positionArray[4*k+1], positionArray[4*k+2]];
+    // for (let i = 0; i < this.particleCount; i++) {
+    //   let npos = [
+    //     positionArray[4*i] - pos[0], 
+    //     positionArray[4*i+1] - pos[1], 
+    //     positionArray[4*i+2] - pos[2]
+    //   ];
+    //   let len = Math.sqrt(npos[0]*npos[0] + npos[1]*npos[1] + npos[2]*npos[2]);
+    //   density += kernalPoly6(len);
+    // }
+    // density *= this.particleWeight;
+    // console.log(density, this.restDensity);
 
     // create GPU Buffers
     // neighbor list buffer
@@ -252,6 +254,10 @@ class PBF extends PBFConfig {
   }
 
   public async initResource() {
+
+    // boundary model
+    this.boundaryModel = new BoundaryModel(this.boundaryFilePath);
+    await this.boundaryModel.initResource();
 
     this.createStorageData();
     this.createBindGroup();
