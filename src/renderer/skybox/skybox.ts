@@ -1,50 +1,6 @@
-import { canvasFormat, device } from '../controller';
-import {
-  vertexBufferFactory,
-  bindGroupFactory
-} from '../common/base';
-import { ShaderFunction } from "../common/shaderFunction";
-
-const skyboxVertexShader = /* wgsl */`
-struct Camera {
-  position: vec3<f32>,
-  viewMatrix: mat4x4<f32>,
-  viewMatrixInverse: mat4x4<f32>,
-  projectionMatrix: mat4x4<f32>,
-  params: vec4<f32>
-};
-@group(0) @binding(0) var<uniform> camera: Camera;
-
-struct VertOutput {
-  @builtin(position) position: vec4<f32>,
-  @location(0) vPosition: vec3<f32>,
-};
-
-@vertex
-fn main(@location(0) position: vec3<f32>) -> VertOutput {
-  let positionCamera = camera.viewMatrix * vec4<f32>(position, 0.0);
-  let positionNDC = camera.projectionMatrix * vec4<f32>(positionCamera.xyz, 1.0);
-  let positionReverseZ = vec4<f32>(positionNDC.xy, 0.0, positionNDC.w);
-  return VertOutput(positionReverseZ, position);
-}
-`;
-
-
-const skyboxFragmentShader = /* wgsl */`
-@group(0) @binding(1) var linearSampler: sampler;
-@group(0) @binding(2) var envMap: texture_cube<f32>;
-
-${ShaderFunction.sRGBGammaEncode}
-
-@fragment
-fn main(
-  @builtin(position) position : vec4<f32>,
-  @location(0) fragPosition : vec3<f32>,
-) -> @location(0) vec4<f32> {
-  let color_linear = textureSampleLevel(envMap, linearSampler, fragPosition, 0);
-  return vec4<f32>(sRGBGammaEncode(color_linear.xyz), 1.0);
-}
-`;
+import { canvasFormat, device } from '../../controller';
+import { vertexBufferFactory } from '../../common/base';
+import { VertexShader, FragmentShader } from './shader';
 
 
 class Skybox {
@@ -55,20 +11,18 @@ class Skybox {
   protected vertexCount: number;
   protected vertexBufferAttributes: string[]; // resource name
   protected vertexBuffers: { [x: string]: GPUBuffer }; // resource in GPU
-
   protected vertexBufferLayout: GPUVertexBufferLayout[];
-  protected bindGroupLayout: GPUBindGroupLayout;
-  protected bindGroup: GPUBindGroup;
+
   protected renderPipeline: GPURenderPipeline;
 
   constructor() {
 
-    this.vertexShaderCode = skyboxVertexShader;
-    this.fragmentShaderCode = skyboxFragmentShader;
+    this.vertexShaderCode = VertexShader;
+    this.fragmentShaderCode = FragmentShader;
 
   };
 
-  public initVertexBuffer() {
+  protected initVertexBuffer() {
 
     const attributes = ['position', 'index'];
     const position = new Float32Array([
@@ -100,25 +54,12 @@ class Skybox {
 
   }
 
-  public async initGroupResource(
-    globalResource: { [x: string]: GPUBuffer | GPUTexture | GPUSampler }
-  ) {
-
-    const layout_group = bindGroupFactory.create(
-      ['camera', 'linearSampler', 'envMap'],
-      globalResource
-    );
-    this.bindGroupLayout = layout_group.layout;
-    this.bindGroup = layout_group.group;
-
-  }
-
-  public async initPipeline() {
+  protected async initPipeline(globalBindGroupLayout: GPUBindGroupLayout) {
 
     this.renderPipeline = await device.createRenderPipelineAsync({
       label: 'Skybox Render Pipeline',
       layout: device.createPipelineLayout({ 
-        bindGroupLayouts: [this.bindGroupLayout] 
+        bindGroupLayouts: [globalBindGroupLayout] 
       }),
       vertex: {
         module: device.createShaderModule({ code: this.vertexShaderCode }),
@@ -143,14 +84,20 @@ class Skybox {
 
   }
 
-  public async setRenderBundle(
+  public async initResouce(globalBindGroupLayout: GPUBindGroupLayout) {
+
+    this.initVertexBuffer();
+    await this.initPipeline(globalBindGroupLayout);
+
+  }
+
+  public setRenderBundle(
     bundleEncoder: GPURenderBundleEncoder
   ) {
     
     bundleEncoder.setPipeline(this.renderPipeline);
     bundleEncoder.setIndexBuffer(this.vertexBuffers.index, 'uint16');
     bundleEncoder.setVertexBuffer(0, this.vertexBuffers.position);
-    bundleEncoder.setBindGroup(0, this.bindGroup);
     bundleEncoder.drawIndexed(this.vertexCount);
 
   }

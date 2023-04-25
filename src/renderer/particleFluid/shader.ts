@@ -1,9 +1,7 @@
 import { wgsl } from '../../3rd-party/wgsl-preprocessor';
-import { ShaderStruct } from "../../common/shaderStruct";
-import { ShaderFunction } from "../../common/shaderFunction";
+import { ShaderStruct, ShaderFunction } from "../../common/shader";
 
 const vertexShader = wgsl/* wgsl */`
-
 ${ShaderStruct.Camera}
 ${ShaderStruct.SphereMaterial}
 
@@ -40,12 +38,10 @@ fn main(input: VertexInput) -> VertexOutput {
     positionScreen, positionCam, uv
   );
 }
-
 `;
 
 
 const fragmentShader = wgsl/* wgsl */`
-
 ${ShaderStruct.Camera}
 ${ShaderStruct.DirectionalLight}
 ${ShaderStruct.SphereMaterial}
@@ -90,7 +86,6 @@ fn main(input: FragmentInput) -> FragmentOutput {
     depth, vec4<f32>(sRGBGammaEncode(diffuse), 1.0)
   );
 }
-
 `;
 
 export { vertexShader, fragmentShader }

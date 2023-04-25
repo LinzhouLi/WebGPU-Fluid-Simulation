@@ -84,8 +84,8 @@ class ScreenSpaceRenderer {
   private initRenderBundle() {
 
     let bundleEncoder = device.createRenderBundleEncoder({
-      colorFormats: [ canvasFormat ]}
-    );
+      colorFormats: [ canvasFormat ]
+    });
     bundleEncoder.setPipeline(this.renderPipeline);
     bundleEncoder.setBindGroup(0, this.bindGroup);
     bundleEncoder.draw(4);

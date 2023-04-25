@@ -13,7 +13,7 @@ class ParicleRasterizer extends ParticleFluid {
   protected depthRenderBundle: GPURenderBundle;
   protected volumeRenderBundle: GPURenderBundle;
 
-  protected depthStencilMap: GPUTexture;
+  protected depthStencilView: GPUTextureView;
 
   constructor(simulator: LagrangianSimulator) {
 
@@ -24,6 +24,8 @@ class ParicleRasterizer extends ParticleFluid {
   public override async initResource(
     globalResource: { [x: string]: GPUBuffer | GPUTexture | GPUSampler }
   ) {
+
+    this.depthStencilView = (globalResource.renderDepthMap as GPUTexture).createView();
 
     await this.initGroupResource();
     this.initBindGroup(globalResource);
@@ -103,13 +105,6 @@ class ParicleRasterizer extends ParticleFluid {
 
   protected initRenderBundle() {
 
-    // depth stencil map
-    this.depthStencilMap = device.createTexture({
-      size: [ canvasSize.width, canvasSize.height ],
-      format: 'depth32float',
-      usage: GPUTextureUsage.RENDER_ATTACHMENT
-    });
-
     // depth pass
     let bundleEncoder = device.createRenderBundleEncoder({
       colorFormats: [ 'r32float' ],
@@ -141,9 +136,8 @@ class ParicleRasterizer extends ParticleFluid {
         storeOp: 'store'
       }],
       depthStencilAttachment: {
-        view: this.depthStencilMap.createView(),
-        depthClearValue: 0.0,
-        depthLoadOp: 'clear',
+        view: this.depthStencilView,
+        depthLoadOp: 'load',
         depthStoreOp: 'store',
       }
     });

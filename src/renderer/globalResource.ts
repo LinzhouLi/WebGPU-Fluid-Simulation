@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { loader } from '../common/loader';
 import { device, canvasSize, canvasFormat } from '../controller';
 import type { TypedArray } from '../common/base';
-import { resourceFactory, EnvMapResolution } from '../common/base';
+import { resourceFactory, bindGroupFactory, EnvMapResolution } from '../common/base';
 import type { ResourceType, BufferData, TextureData, TextureArrayData } from '../common/resourceFactory';
 import { ResourceFactory } from '../common/resourceFactory';
 
@@ -12,10 +12,10 @@ class GlobalResource {
   private camera: THREE.PerspectiveCamera;
   private light: THREE.PointLight | THREE.DirectionalLight;
 
-  private resourceAttributes: string[]; // resource name
   private resourceData: Record<string, BufferData | TextureData | TextureArrayData>; // resource in CPU
-  
   public resource: Record<string, GPUBuffer | GPUTexture | GPUSampler>; // resource in GPU
+  public bindgroupLayout: GPUBindGroupLayout;
+  private bindgroup: GPUBindGroup;
 
   constructor(camera: THREE.PerspectiveCamera, light: THREE.DirectionalLight) {
 
@@ -52,7 +52,7 @@ class GlobalResource {
       directionalLight: {
         type: 'buffer' as ResourceType,
         label: 'Directional Light Structure', // direction(vec3<f32>), color(vec3<f32>), view projection matrix(mat4x4<f32>)
-        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        visibility: GPUShaderStage.FRAGMENT,
         usage:  GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         layout: { 
           type: 'uniform' as GPUBufferBindingType
@@ -75,7 +75,7 @@ class GlobalResource {
       envMap: {
         type: 'cube-texture' as ResourceType,
         label: 'Skybox Map',
-        visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE,
+        visibility: GPUShaderStage.FRAGMENT,
         usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
         size: [EnvMapResolution, EnvMapResolution, 6],
         dimension: '2d' as GPUTextureDimension,
@@ -113,11 +113,6 @@ class GlobalResource {
 
   public async initResource() {
 
-    this.resourceAttributes = [ 
-      'renderDepthMap',
-      'camera', 'directionalLight', 'envMap', 'linearSampler' 
-    ];
-
     const light = this.light as THREE.DirectionalLight;
     let lightDir = light.position.clone().sub(light.target.position).normalize();
     let lightColor = new THREE.Vector3(...this.light.color.toArray()).setScalar(this.light.intensity);
@@ -144,7 +139,25 @@ class GlobalResource {
       }
     }
     
-    this.resource = await resourceFactory.createResource(this.resourceAttributes, this.resourceData);
+    this.resource = await resourceFactory.createResource(
+      [ 'renderDepthMap', 'camera', 'directionalLight', 'linearSampler', 'envMap' ], 
+      this.resourceData
+    );
+
+    const layout_group = bindGroupFactory.create(
+      [ 'camera', 'directionalLight', 'linearSampler', 'envMap' ],
+      this.resource
+    );
+    this.bindgroupLayout = layout_group.layout;
+    this.bindgroup = layout_group.group;
+
+  }
+
+  public async setRenderBundle(
+    bundleEncoder: GPURenderBundleEncoder
+  ) {
+
+    bundleEncoder.setBindGroup(0, this.bindgroup);
 
   }
 

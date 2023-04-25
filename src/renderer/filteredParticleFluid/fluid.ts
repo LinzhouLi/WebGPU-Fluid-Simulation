@@ -97,8 +97,6 @@ class FilteredParticleFluid {
     ctxTextureView: GPUTextureView
   ) {
 
-    this.textureFilter.setFilterSize(10);
-
     // render point sprite
     this.paricleRasterizer.execute(
       commandEncoder, 

@@ -1,4 +1,4 @@
-import { ShaderStruct } from "../../../common/shaderStruct";
+import { ShaderStruct } from "../../../common/shader";
 
 
 const volumePassVertexShader = /* wgsl */`

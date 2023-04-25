@@ -1,5 +1,4 @@
-import { ShaderStruct } from "../../../common/shaderStruct";
-import { ShaderFunction } from "../../../common/shaderFunction";
+import { ShaderStruct, ShaderFunction } from "../../../common/shader";
 
 const fragmentShader = /* wgsl */`
 

@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 
 class Loader {
 
   private loaderGLTF: GLTFLoader;
   private loaderFBX: FBXLoader;
+  private loaderOBJ: OBJLoader;
   private loaderTexture: THREE.TextureLoader;
   private loaderCubeTexture: THREE.CubeTextureLoader;
 
@@ -13,6 +15,7 @@ class Loader {
 
     this.loaderGLTF = new GLTFLoader();
     this.loaderFBX = new FBXLoader();
+    this.loaderOBJ = new OBJLoader();
     this.loaderTexture = new THREE.TextureLoader();
     this.loaderCubeTexture = new THREE.CubeTextureLoader();
 
@@ -41,6 +44,22 @@ class Loader {
       reject: (reason: any) => void
     ) => { 
       this.loaderFBX.load( 
+        path, 
+        gltf => { resolve( gltf ); }, // onLoad
+        null, // onProgress
+        error => reject(error) // onError
+      );
+    });
+
+  }
+
+  public loadOBJ(path: string) {
+
+    return new Promise((
+      resolve: (gltf: any) => void, 
+      reject: (reason: any) => void
+    ) => { 
+      this.loaderOBJ.load( 
         path, 
         gltf => { resolve( gltf ); }, // onLoad
         null, // onProgress

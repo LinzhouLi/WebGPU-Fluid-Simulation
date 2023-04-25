@@ -2,10 +2,12 @@ import * as THREE from 'three';
 import { GlobalResource } from './renderer/globalResource';
 import { ParticleFluid } from './renderer/particleFluid/fluid';
 import { FilteredParticleFluid } from './renderer/filteredParticleFluid/fluid'
-import { Skybox } from './renderer/skybox';
+import { Skybox } from './renderer/skybox/skybox';
+import { Mesh } from './renderer/mesh/mesh';
 import { LagrangianSimulator } from './simulator/LagrangianSimulator';
 // import { MPM } from './simulator/MPM';
 import { PBF } from './simulator/PBF/PBF';
+import { loader } from './common/loader';
 
 
 // console.info( 'THREE.WebGPURenderer: Modified Matrix4.makePerspective() and Matrix4.makeOrtographic() to work with WebGPU, see https://github.com/mrdoob/three.js/issues/20276.' );
@@ -83,12 +85,13 @@ class Controller {
   private canvas: HTMLCanvasElement;
   private context: GPUCanvasContext;
   private renderBundle: GPURenderBundle;
-  private renderDepthMap: GPUTexture;
+  private renderDepthView: GPUTextureView;
   private camera: THREE.PerspectiveCamera;
-  public globalResource: GlobalResource;
+  private globalResource: GlobalResource;
 
   private skybox: Skybox;
-  // private particles: ParticleFluid;
+  private mesh: Mesh;
+  private particles: ParticleFluid;
   private fluidRender: FilteredParticleFluid;
   private simulator: LagrangianSimulator;
 
@@ -98,6 +101,7 @@ class Controller {
 
   private RegisterResourceFormats() {
     GlobalResource.RegisterResourceFormats();
+    Mesh.RegisterResourceFormats();
     ParticleFluid.RegisterResourceFormats();
     FilteredParticleFluid.RegisterResourceFormats();
     LagrangianSimulator.RegisterResourceFormats();
@@ -149,7 +153,23 @@ class Controller {
     this.camera.updateProjectionMatrix(); 
     this.globalResource = new GlobalResource(camera, light);
     await this.globalResource.initResource();
-    this.renderDepthMap = this.globalResource.resource.renderDepthMap as GPUTexture;
+    this.renderDepthView = (this.globalResource.resource.renderDepthMap as GPUTexture).createView();
+
+    // sky box renderer
+    this.skybox = new Skybox();
+    await this.skybox.initResouce(this.globalResource.bindgroupLayout);
+
+    // mesh
+    // const obj = await loader.loadOBJ("model/torus.obj");
+    const geometry = new THREE.TorusGeometry( 1.0, 0.2, 16, 60 );
+    const material = new THREE.MeshPhongMaterial( { color: 0xffff00 } );
+    const torus = new THREE.Mesh( geometry, material );
+    torus.position.set(0.5, 0.2, 0.5);
+    torus.scale.set(0.2, 0.2, 0.2);
+    torus.rotation.set(Math.PI / 2, 0, 0.0);
+    torus.updateMatrixWorld();
+    this.mesh = new Mesh(torus);
+    await this.mesh.initResouce(this.globalResource.bindgroupLayout);
 
     // PBF simulator
     this.simulator = new PBF();
@@ -157,26 +177,22 @@ class Controller {
     await this.simulator.initComputePipeline();
     this.simulator.enableInteraction();
 
+    // particles
+    // this.particles = new ParticleFluid(this.simulator);
+    // await this.particles.initResource(this.globalResource.resource);
+
     // fluid renderer
-    // this.particles = new SpriteParticles(this.simulator);
-    // this.particles.initVertexBuffer();
-    // await this.particles.initGroupResource(this.globalResource.resource);
-    // await this.particles.initPipeline();
     this.fluidRender = new FilteredParticleFluid(this.simulator, this.camera);
     await this.fluidRender.initResource(this.globalResource.resource);
-
-    // sky box renderer
-    this.skybox = new Skybox();
-    this.skybox.initVertexBuffer();
-    await this.skybox.initGroupResource(this.globalResource.resource);
-    await this.skybox.initPipeline();
 
     const renderBundleEncoder = device.createRenderBundleEncoder({
       colorFormats: [ canvasFormat ],
       depthStencilFormat: 'depth32float' // format of renderDepthMap
     });
-    await this.skybox.setRenderBundle(renderBundleEncoder);
-    // await this.particles.setRenderBundle(renderBundleEncoder);
+    this.globalResource.setRenderBundle(renderBundleEncoder);
+    this.mesh.setRenderBundle(renderBundleEncoder);
+    this.skybox.setRenderBundle(renderBundleEncoder);
+    // this.particles.setRenderBundle(renderBundleEncoder);
     this.renderBundle = renderBundleEncoder.finish();
 
   }
@@ -199,7 +215,7 @@ class Controller {
         storeOp: 'store'
       }],
       depthStencilAttachment: {
-        view: this.renderDepthMap.createView(),
+        view: this.renderDepthView,
         depthClearValue: 0.0,
         depthLoadOp: 'clear',
         depthStoreOp: 'store',

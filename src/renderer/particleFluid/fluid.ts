@@ -156,7 +156,7 @@ class ParticleFluid {
 
   }
 
-  protected async setRenderBundle(
+  public async setRenderBundle(
     bundleEncoder: GPURenderBundleEncoder
   ) {
     
