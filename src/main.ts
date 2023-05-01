@@ -27,22 +27,22 @@ class Main {
 
   start() {
     
-    let frame = 0;
-    const render = () => {
-      this.stats.begin();
+    // let frame = 0;
+    // const render = () => {
+    //   this.stats.begin();
       
-      this.controller.update();
-      this.controller.run();
+    //   this.controller.update();
+    //   this.controller.run();
 
-      this.stats.end();
+    //   this.stats.end();
       
-      requestAnimationFrame(render);
-      frame++;
-    }
+    //   requestAnimationFrame(render);
+    //   frame++;
+    // }
 
-    render();
+    // render();
 
-    // this.controller.debug();
+    this.controller.debug();
 
   }
 

@@ -128,7 +128,7 @@ fn getShapeFunction(
 
 
 const Interpolation = /* wgsl */`
-function interpolate(
+fn interpolate(
   xi: vec3<f32>,
   field: DiscreteField,
   N: ptr< function, array<vec4<f32>, 8> >,
@@ -137,17 +137,17 @@ function interpolate(
   let i = x.x; let j = x.y; let k = x.z;
   let i2 = i << 1; let j2 = j << 1; let k2 = k << 1; 
 
-  let valvec0 = vec4<f32>(corner[k][j][i], corner[k][j][i + 1], corner[k][j + 1][i], corner[k][j + 1][i + 1]);
-  let valvec1 = vec4<f32>(corner[k + 1][j][i], corner[k + 1][j][i + 1], corner[k + 1][j + 1][i], corner[k + 1][j + 1][i + 1]);
+  let valvec0 = vec4<f32>(field.corner[k][j][i], field.corner[k][j][i + 1], field.corner[k][j + 1][i], field.corner[k][j + 1][i + 1]);
+  let valvec1 = vec4<f32>(field.corner[k + 1][j][i], field.corner[k + 1][j][i + 1], field.corner[k + 1][j + 1][i], field.corner[k + 1][j + 1][i + 1]);
 
-  let valvec2 = vec4<f32>(edgex[k][j][i2], edgex[k][j][i2 + 1], edgex[k + 1][j][i2], edgex[k + 1][j][i2]);
-  let valvec3 = vec4<f32>(edgex[k][j + 1][i2], edgex[k][j + 1][i2 + 1], edgex[k + 1][j + 1][i2], edgex[k + 1][j + 1][i2]);
+  let valvec2 = vec4<f32>(field.edgex[k][j][i2], field.edgex[k][j][i2 + 1], field.edgex[k + 1][j][i2], field.edgex[k + 1][j][i2]);
+  let valvec3 = vec4<f32>(field.edgex[k][j + 1][i2], field.edgex[k][j + 1][i2 + 1], field.edgex[k + 1][j + 1][i2], field.edgex[k + 1][j + 1][i2]);
 
-  let valvec4 = vec4<f32>(edgey[i][k][j2], edgey[i][k][j2 + 1], edgey[i + 1][k][j2], edgey[i + 1][k][j2 + 1]);
-  let valvec5 = vec4<f32>(edgey[i][k + 1][j2], edgey[i][k + 1][j2 + 1], edgey[i + 1][k + 1][j2], edgey[i + 1][k + 1][j2 + 1]);
+  let valvec4 = vec4<f32>(field.edgey[i][k][j2], field.edgey[i][k][j2 + 1], field.edgey[i + 1][k][j2], field.edgey[i + 1][k][j2 + 1]);
+  let valvec5 = vec4<f32>(field.edgey[i][k + 1][j2], field.edgey[i][k + 1][j2 + 1], field.edgey[i + 1][k + 1][j2], field.edgey[i + 1][k + 1][j2 + 1]);
 
-  let valvec6 = vec4<f32>(edgez[j][i][k2], edgez[j][i][k2], edgez[j + 1][i][k2], edgez[j + 1][i][k2]);
-  let valvec7 = vec4<f32>(edgez[j][i + 1][k2], edgez[j][i + 1][k2], edgez[j + 1][i + 1][k2], edgez[j + 1][i + 1][k2]);
+  let valvec6 = vec4<f32>(field.edgez[j][i][k2], field.edgez[j][i][k2], field.edgez[j + 1][i][k2], field.edgez[j + 1][i][k2]);
+  let valvec7 = vec4<f32>(field.edgez[j][i + 1][k2], field.edgez[j][i + 1][k2], field.edgez[j + 1][i + 1][k2], field.edgez[j + 1][i + 1][k2]);
 
   let result0 = vec4<f32>(dot(valvec0, (*N)[0]), dot(valvec1, (*N)[1]), dot(valvec2, (*N)[2]), dot(valvec3, (*N)[3]));
   let result1 = vec4<f32>(dot(valvec4, (*N)[4]), dot(valvec5, (*N)[5]), dot(valvec6, (*N)[6]), dot(valvec7, (*N)[7]));
@@ -155,7 +155,7 @@ function interpolate(
   return (result2.x + result2.y + result2.z + result2.w);
 }
 
-function interpolateWithGrad(
+fn interpolateWithGrad(
   xi: vec3<f32>,
   field: DiscreteField,
   N: ptr< function, array<vec4<f32>, 8> >,
@@ -165,17 +165,17 @@ function interpolateWithGrad(
   let i = x.x; let j = x.y; let k = x.z;
   let i2 = i << 1; let j2 = j << 1; let k2 = k << 1; 
 
-  let valvec0 = vec4<f32>(corner[k][j][i], corner[k][j][i + 1], corner[k][j + 1][i], corner[k][j + 1][i + 1]);
-  let valvec1 = vec4<f32>(corner[k + 1][j][i], corner[k + 1][j][i + 1], corner[k + 1][j + 1][i], corner[k + 1][j + 1][i + 1]);
+  let valvec0 = vec4<f32>(field.corner[k][j][i], field.corner[k][j][i + 1], field.corner[k][j + 1][i], field.corner[k][j + 1][i + 1]);
+  let valvec1 = vec4<f32>(field.corner[k + 1][j][i], field.corner[k + 1][j][i + 1], field.corner[k + 1][j + 1][i], field.corner[k + 1][j + 1][i + 1]);
 
-  let valvec2 = vec4<f32>(edgex[k][j][i2], edgex[k][j][i2 + 1], edgex[k + 1][j][i2], edgex[k + 1][j][i2]);
-  let valvec3 = vec4<f32>(edgex[k][j + 1][i2], edgex[k][j + 1][i2 + 1], edgex[k + 1][j + 1][i2], edgex[k + 1][j + 1][i2]);
+  let valvec2 = vec4<f32>(field.edgex[k][j][i2], field.edgex[k][j][i2 + 1], field.edgex[k + 1][j][i2], field.edgex[k + 1][j][i2 + 1]);
+  let valvec3 = vec4<f32>(field.edgex[k][j + 1][i2], field.edgex[k][j + 1][i2 + 1], field.edgex[k + 1][j + 1][i2], field.edgex[k + 1][j + 1][i2 + 1]);
 
-  let valvec4 = vec4<f32>(edgey[i][k][j2], edgey[i][k][j2 + 1], edgey[i + 1][k][j2], edgey[i + 1][k][j2 + 1]);
-  let valvec5 = vec4<f32>(edgey[i][k + 1][j2], edgey[i][k + 1][j2 + 1], edgey[i + 1][k + 1][j2], edgey[i + 1][k + 1][j2 + 1]);
+  let valvec4 = vec4<f32>(field.edgey[i][k][j2], field.edgey[i][k][j2 + 1], field.edgey[i + 1][k][j2], field.edgey[i + 1][k][j2 + 1]);
+  let valvec5 = vec4<f32>(field.edgey[i][k + 1][j2], field.edgey[i][k + 1][j2 + 1], field.edgey[i + 1][k + 1][j2], field.edgey[i + 1][k + 1][j2 + 1]);
 
-  let valvec6 = vec4<f32>(edgez[j][i][k2], edgez[j][i][k2], edgez[j + 1][i][k2], edgez[j + 1][i][k2]);
-  let valvec7 = vec4<f32>(edgez[j][i + 1][k2], edgez[j][i + 1][k2], edgez[j + 1][i + 1][k2], edgez[j + 1][i + 1][k2]);
+  let valvec6 = vec4<f32>(field.edgez[j][i][k2], field.edgez[j][i][k2 + 1], field.edgez[j + 1][i][k2], field.edgez[j + 1][i][k2 + 1]);
+  let valvec7 = vec4<f32>(field.edgez[j][i + 1][k2], field.edgez[j][i + 1][k2 + 1], field.edgez[j + 1][i + 1][k2], field.edgez[j + 1][i + 1][k2 + 1]);
 
   let result0 = vec4<f32>(dot(valvec0, (*N)[0]), dot(valvec1, (*N)[1]), dot(valvec2, (*N)[2]), dot(valvec3, (*N)[3]));
   let result1 = vec4<f32>(dot(valvec4, (*N)[4]), dot(valvec5, (*N)[5]), dot(valvec6, (*N)[6]), dot(valvec7, (*N)[7]));
@@ -188,3 +188,27 @@ function interpolateWithGrad(
   return vec4<f32>(grad_result, scaler_result);
 }
 `;
+
+const DebugShader = /* wgsl */`
+${DiscreteField}
+const GridSize = vec3<f32>(1.0, 1.0, 1.0);
+const GridSizeU = vec3<u32>(GridSize);
+const GridSpaceSize: vec3<f32> = 1.0 / GridSize;
+
+@group(0) @binding(0) var<storage, read_write> field_data: DiscreteField;
+@group(0) @binding(1) var<storage, read_write> result_data: array<vec4<f32>, 8>;
+
+${ShapeFunction}
+${Interpolation}
+
+@compute @workgroup_size(1, 1, 1)
+fn main() {
+  var N: array<vec4<f32>, 8>;
+  var dN: array<mat4x3<f32>, 8>;
+  let x = vec3<f32>(0.2, 0.6, 0.3);
+  getShapeFunction(x, &N, &dN);
+  result_data[0] = interpolateWithGrad(x, field_data, &N, &dN);
+}
+`;
+
+export { DiscreteField, ShapeFunction, Interpolation, DebugShader }

@@ -425,6 +425,8 @@ class PBF extends PBFConfig {
 
   public async debug() {
 
+    await BoundaryModel.debug();
+
     if (PBF.debug) {
       const ce = device.createCommandEncoder();
       ce.copyBufferToBuffer(
