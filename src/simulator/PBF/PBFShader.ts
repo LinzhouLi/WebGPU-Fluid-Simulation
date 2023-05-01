@@ -86,14 +86,16 @@ const DoubleKernelRadius: f32 = 2.0 * KernelRadius;
 const GridSize: vec3<f32> = vec3<f32>(${PBFConfig.BOUNDARY_GRID[0]}, ${PBFConfig.BOUNDARY_GRID[1]}, ${PBFConfig.BOUNDARY_GRID[2]});
 const GridSizeU: vec3<u32> = vec3<u32>(GridSize);
 const GridSpaceSize: vec3<f32> = 1.0 / GridSize;
+
+override ParticleCount: u32;
+
 ${DiscreteField}
 ${ShapeFunction}
 ${Interpolation}
 
 @group(1) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
 @group(1) @binding(3) var<storage, read_write> boundaryData: array<vec4<f32>>;
-@group(1) @binding(4) var<storage, read_write> sdf: DiscreteField;
-@group(1) @binding(5) var<storage, read_write> volumeMap: DiscreteField;
+@group(1) @binding(4) var<storage, read_write> field: array<DiscreteField, 2>;
 
 @compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
@@ -106,11 +108,11 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   var bData = vec4<f32>();
 
   getShapeFunction(x, &N, &dN);
-  let normal_dist = interpolateWithGrad(x, sdf, &N, &dN);
+  let normal_dist = interpolateWithGrad(x, field[0], &N, &dN);
   let dist = normal_dist.w;
 
   if (dist > 0.0 && dist < KernelRadius && length(normal_dist.xyz) > 1e-9) {
-    let volume = interpolate(x, volumeMap, &N);
+    let volume = interpolate(x, field[1], &N);
     if (volume > 0.0) {
       let normal = normalize(normal_dist.xyz);
       let d = max(                    // boundary point is 0.5 * KernelRadius below the surface. 

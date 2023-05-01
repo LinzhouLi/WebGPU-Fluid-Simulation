@@ -5,7 +5,7 @@ import { NeighborSearch } from '../neighbor/neighborSearch';
 import { 
   ForceApplyShader,       LambdaCalculationShader,
   ConstrainSolveShader,   ConstrainApplyShader,
-  AttributeUpdateShader,  XSPHShader
+  AttributeUpdateShader,  XSPHShader, BoundaryVolumeShader
 } from './PBFShader';
 import { ExclusiveScan } from '../neighbor/exclusiveScan';
 import { BoundaryModel } from '../boundary/volumeMap';
@@ -30,6 +30,7 @@ class PBF extends PBFConfig {
 
   private positionPredict: GPUBuffer;
   private deltaPosition: GPUBuffer;
+  private boundaryData: GPUBuffer;
   private lambda: GPUBuffer;
   private velocity: GPUBuffer;
   private velocityCopy: GPUBuffer;
@@ -45,6 +46,7 @@ class PBF extends PBFConfig {
   private viscosityBindGroup: GPUBindGroup;
 
   private forceApplyPipeline: GPUComputePipeline;
+  private boundaryVolumePipeline: GPUComputePipeline;
   private lambdaCalculationPipeline: GPUComputePipeline;
   private constrainSolvePipeline: GPUComputePipeline;
   private constrainApplyPipeline: GPUComputePipeline;
@@ -132,8 +134,8 @@ class PBF extends PBFConfig {
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
     } as GPUBufferDescriptor;
     this.positionPredict = device.createBuffer(attributeBufferDesp);
-    // this.positionPredictCopy = device.createBuffer(attributeBufferDesp);
     this.deltaPosition = device.createBuffer(attributeBufferDesp);
+    this.boundaryData = device.createBuffer(attributeBufferDesp);
     this.velocity = device.createBuffer(attributeBufferDesp);
     this.velocityCopy = device.createBuffer(attributeBufferDesp);
 
@@ -218,7 +220,9 @@ class PBF extends PBFConfig {
       entries: [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        // { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
       ]
     });
 
@@ -227,7 +231,9 @@ class PBF extends PBFConfig {
       entries: [
         { binding: 0, resource: { buffer: this.positionPredict } },
         { binding: 1, resource: { buffer: this.deltaPosition } },
-        { binding: 2, resource: { buffer: this.lambda } }
+        { binding: 2, resource: { buffer: this.lambda } },
+        { binding: 3, resource: { buffer: this.boundaryData } },
+        // { binding: 4, resource: { buffer: this.boundaryModel.field } }
       ]
     });
 
@@ -308,6 +314,19 @@ class PBF extends PBFConfig {
     const constrainPipelineLayout = device.createPipelineLayout({
       bindGroupLayouts: [this.neighborBindGroupLayout, this.constrainBindGroupLayout]
     });
+
+    // this.boundaryVolumePipeline = await device.createComputePipelineAsync({
+    //   label: 'Boundary Volume Pipeline (PBF)',
+    //   layout: constrainPipelineLayout,
+    //   compute: {
+    //     module: device.createShaderModule({ code: BoundaryVolumeShader }),
+    //     entryPoint: 'main',
+    //     constants: {
+    //       ParticleCount: this.particleCount
+    //     }
+    //   }
+    // });
+
     this.lambdaCalculationPipeline = await device.createComputePipelineAsync({
       label: 'Lambda Calculation Pipeline (PBF)',
       layout: constrainPipelineLayout,
@@ -322,8 +341,6 @@ class PBF extends PBFConfig {
         }
       }
     });
-
-
 
     this.constrainSolvePipeline = await device.createComputePipelineAsync({
       label: 'Constrain Solve Pipeline (PBF)',
@@ -400,6 +417,9 @@ class PBF extends PBFConfig {
     passEncoder.setBindGroup(0, this.neighborBindGroup);
     passEncoder.setBindGroup(1, this.constrainBindGroup);
     for (let i = 0; i < this.constrainIterationCount; i++) {
+      // passEncoder.setPipeline(this.boundaryVolumePipeline);
+      // passEncoder.dispatchWorkgroups(workgroupCount);
+
       passEncoder.setPipeline(this.lambdaCalculationPipeline);
       passEncoder.dispatchWorkgroups(workgroupCount);
 
@@ -425,7 +445,7 @@ class PBF extends PBFConfig {
 
   public async debug() {
 
-    await BoundaryModel.debug();
+    // await BoundaryModel.debug();
 
     if (PBF.debug) {
       const ce = device.createCommandEncoder();

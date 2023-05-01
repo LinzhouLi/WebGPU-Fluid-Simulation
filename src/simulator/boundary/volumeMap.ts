@@ -7,8 +7,8 @@ class BoundaryModel {
   private filePath: string;
 
   public resolution: number[];
-  public sdf: GPUBuffer;
-  public volumeMap: GPUBuffer;
+  public field: GPUBuffer;
+  public fieldByteLength: number;
 
   constructor(filePath: string) {
 
@@ -25,20 +25,19 @@ class BoundaryModel {
     this.resolution = data_split[0].split(' ').map(parseFloat);
 
     const sdf_data = new Float32Array( data_split[2].split(' ').map(parseFloat).slice(0, -1) );
-
     const volumeMap_data = new Float32Array( data_split[4].split(' ').map(parseFloat).slice(0, -1) );
-    
-    this.sdf = device.createBuffer({
-      size: sdf_data.length * Float32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE
-    });
-    device.queue.writeBuffer( this.sdf, 0, sdf_data, 0 );
 
-    this.volumeMap = device.createBuffer({
-      size: volumeMap_data.length * Float32Array.BYTES_PER_ELEMENT,
+    if (sdf_data.length != volumeMap_data.length) {
+      throw new Error('Invalid Boundary Model File!');
+    }
+    this.fieldByteLength = sdf_data.length * Float32Array.BYTES_PER_ELEMENT;
+    
+    this.field = device.createBuffer({
+      size: 2 * this.fieldByteLength,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE
     });
-    device.queue.writeBuffer( this.volumeMap, 0, volumeMap_data, 0 );
+    device.queue.writeBuffer( this.field, 0, sdf_data, 0 );
+    device.queue.writeBuffer( this.field, this.fieldByteLength, volumeMap_data, 0 );
 
   }
 
