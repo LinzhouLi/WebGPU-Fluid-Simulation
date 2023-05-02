@@ -161,7 +161,7 @@ class Controller {
 
     // mesh
     // const obj = await loader.loadOBJ("model/torus.obj");
-    const geometry = new THREE.TorusGeometry( 1.0, 0.2, 16, 60 );
+    const geometry = new THREE.TorusGeometry( 1.0, 0.4, 16, 60 );
     const material = new THREE.MeshPhongMaterial( { color: 0xffff00 } );
     const torus = new THREE.Mesh( geometry, material );
     torus.position.set(0.5, 0.2, 0.5);

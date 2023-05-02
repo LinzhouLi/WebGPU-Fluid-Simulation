@@ -81,13 +81,12 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
 /***************** Constrain Solving *****************/
 const BoundaryVolumeShader = /* wgsl */`
 const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
-const HalfKernelRadius: f32 = 0.5 * KernelRadius;
-const DoubleKernelRadius: f32 = 2.0 * KernelRadius;
 const GridSize: vec3<f32> = vec3<f32>(${PBFConfig.BOUNDARY_GRID[0]}, ${PBFConfig.BOUNDARY_GRID[1]}, ${PBFConfig.BOUNDARY_GRID[2]});
 const GridSizeU: vec3<u32> = vec3<u32>(GridSize);
 const GridSpaceSize: vec3<f32> = 1.0 / GridSize;
 
 override ParticleCount: u32;
+override ParticleRadius: f32;
 
 ${DiscreteField}
 ${ShapeFunction}
@@ -95,7 +94,7 @@ ${Interpolation}
 
 @group(1) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
 @group(1) @binding(3) var<storage, read_write> boundaryData: array<vec4<f32>>;
-@group(1) @binding(4) var<storage, read_write> field: array<DiscreteField, 2>;
+@group(1) @binding(4) var<storage, read_write> field: DiscreteField;
 
 @compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
@@ -108,18 +107,18 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   var bData = vec4<f32>();
 
   getShapeFunction(x, &N, &dN);
-  let normal_dist = interpolateWithGrad(x, field[0], &N, &dN);
+  let normal_dist = interpolateSDF(x, &N, &dN);
   let dist = normal_dist.w;
 
   if (dist > 0.0 && dist < KernelRadius && length(normal_dist.xyz) > 1e-9) {
-    let volume = interpolate(x, field[1], &N);
+    let volume = interpolateVolumeMap(x, &N);
     if (volume > 0.0) {
       let normal = normalize(normal_dist.xyz);
-      let d = max(                    // boundary point is 0.5 * KernelRadius below the surface. 
-        dist + HalfKernelRadius,      // Ensure that the particle is at least one particle diameter away 
-        DoubleKernelRadius            // from the boundary X to avoid strong pressure forces.
+      let d = max(                      // boundary point is 0.5 * ParticleRadius below the surface. 
+        dist + 0.5 * ParticleRadius,    // Ensure that the particle is at least one particle diameter away 
+        2.0 * ParticleRadius            // from the boundary X to avoid strong pressure forces.
       );
-      let bData = vec4<f32>(
+      bData = vec4<f32>(
         x - d * normal,
         volume
       );
@@ -154,6 +153,7 @@ ${KernalSpikyGrad}
 
 @group(1) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
 @group(1) @binding(2) var<storage, read_write> lambda: array<f32>;
+@group(1) @binding(3) var<storage, read_write> boundaryData: array<vec4<f32>>;
 
 @compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
@@ -172,6 +172,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   var sum_grad_Pj_Ci_2 = f32();
   var density = f32();
 
+  // fluid
   for (var i: u32 = 0; i < nCount; i++) {
     nParticleIndex = neighborList[nListIndex];
 
@@ -185,9 +186,26 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
 
     nListIndex++;
   }
+  density *= ParticleVolume;
+  grad_Pi_Ci *= ParticleVolume;
+  sum_grad_Pj_Ci_2 *= ParticleVolume2;
 
-  let constrain = max(0.0, density * ParticleVolume - 1.0);
-  let sum_grad_Ci_2 = (dot(grad_Pi_Ci, grad_Pi_Ci) + sum_grad_Pj_Ci_2) * ParticleVolume2;
+  // boundary
+  {
+    let xj_vj = boundaryData[particleIndex];
+    let xj = xj_vj.xyz; 
+    let vj = xj_vj.w;
+
+    positionDelta = selfPosition - xj;
+    positionDeltaLength = length(positionDelta);
+
+    grad_Pk = vj * kernalSpikyGrad(positionDelta, positionDeltaLength);
+    grad_Pi_Ci += grad_Pk;
+    density += vj * kernalPoly6(positionDeltaLength);
+  }
+
+  let constrain = max(0.0, density - 1.0);
+  let sum_grad_Ci_2 = dot(grad_Pi_Ci, grad_Pi_Ci) + sum_grad_Pj_Ci_2;
   lambda[particleIndex] = -constrain / (sum_grad_Ci_2 + LambdaEPS);
   return;
 }
@@ -201,7 +219,7 @@ const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
 const MaxNeighborCount: u32 = ${PBFConfig.MAX_NEIGHBOR_COUNT};
 override ParticleCount: u32;
 override ParticleVolume: f32;
-override ScorrCoef: f32;
+// override ScorrCoef: f32;
 ${KernalPoly6}
 ${KernalSpikyGrad}
 
@@ -212,6 +230,7 @@ ${KernalSpikyGrad}
 @group(1) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
 @group(1) @binding(1) var<storage, read_write> deltaPosition: array<vec3<f32>>;
 @group(1) @binding(2) var<storage, read_write> lambda: array<f32>;
+@group(1) @binding(3) var<storage, read_write> boundaryData: array<vec4<f32>>;
 
 @compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
@@ -230,6 +249,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   var scorr: f32;
   var positionUpdate = vec3<f32>();
 
+  // fluid
   for (var i: u32 = 0; i < nCount; i++) {
     nParticleIndex = neighborList[nListIndex];
 
@@ -237,16 +257,29 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
     positionDeltaLength = length(positionDelta);
     neighborLambda = lambda[nParticleIndex];
 
-    scorr = kernalPoly6(positionDeltaLength); // suppose scorr_n == 4
-    scorr *= scorr;
-    scorr *= ScorrCoef * scorr;
+    // scorr = kernalPoly6(positionDeltaLength); // suppose scorr_n == 4
+    // scorr *= scorr;
+    // scorr *= ScorrCoef * scorr;
     positionUpdate += (selfLambda + neighborLambda) * // + scorr) *
       kernalSpikyGrad(positionDelta, positionDeltaLength);
 
     nListIndex++;
   }
+  positionUpdate *= ParticleVolume;
 
-  deltaPosition[particleIndex] = 0.5 * positionUpdate * ParticleVolume;
+  // boundary
+  {
+    let xj_vj = boundaryData[particleIndex];
+    let xj = xj_vj.xyz; 
+    let vj = xj_vj.w;
+
+    positionDelta = selfPosition - xj;
+    positionDeltaLength = length(positionDelta);
+
+    positionUpdate += vj * selfLambda * kernalSpikyGrad(positionDelta, positionDeltaLength);
+  }
+
+  deltaPosition[particleIndex] = 0.5 * positionUpdate;
   return;
 }
 `;

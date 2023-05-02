@@ -74,6 +74,7 @@ class PBF extends PBFConfig {
     const particlePerDim = 34;
     const range = 0.5;
     const particleDiam = range / particlePerDim;
+    this.particleRadius = 0.5 * particleDiam;
     if (this.restDensity) {
       this.particleVolume = 0.98 * particleDiam * particleDiam * particleDiam;
       this.particleWeight = this.particleVolume * this.restDensity;
@@ -83,10 +84,11 @@ class PBF extends PBFConfig {
     // set initial particle position
     let positionArray = new Float32Array(4 * this.particleCount);
     let position = new THREE.Vector3();
+    let offset = new THREE.Vector3(0.15, 0.35, 0.15);
     for (let i = 0; i < particlePerDim; i++) {
       for (let j = 0; j < particlePerDim; j++) {
         for (let k = 0; k < particlePerDim; k++) {
-          position.set(i, j, k).multiplyScalar(particleDiam).addScalar(0.15);
+          position.set(i, j, k).multiplyScalar(particleDiam).add(offset);
           positionArray.set(
             position.toArray(),
             (i * particlePerDim * particlePerDim + j * particlePerDim + k) * 4
@@ -222,7 +224,7 @@ class PBF extends PBFConfig {
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        // { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
       ]
     });
 
@@ -233,7 +235,7 @@ class PBF extends PBFConfig {
         { binding: 1, resource: { buffer: this.deltaPosition } },
         { binding: 2, resource: { buffer: this.lambda } },
         { binding: 3, resource: { buffer: this.boundaryData } },
-        // { binding: 4, resource: { buffer: this.boundaryModel.field } }
+        { binding: 4, resource: { buffer: this.boundaryModel.field } }
       ]
     });
 
@@ -315,17 +317,18 @@ class PBF extends PBFConfig {
       bindGroupLayouts: [this.neighborBindGroupLayout, this.constrainBindGroupLayout]
     });
 
-    // this.boundaryVolumePipeline = await device.createComputePipelineAsync({
-    //   label: 'Boundary Volume Pipeline (PBF)',
-    //   layout: constrainPipelineLayout,
-    //   compute: {
-    //     module: device.createShaderModule({ code: BoundaryVolumeShader }),
-    //     entryPoint: 'main',
-    //     constants: {
-    //       ParticleCount: this.particleCount
-    //     }
-    //   }
-    // });
+    this.boundaryVolumePipeline = await device.createComputePipelineAsync({
+      label: 'Boundary Volume Pipeline (PBF)',
+      layout: constrainPipelineLayout,
+      compute: {
+        module: device.createShaderModule({ code: BoundaryVolumeShader }),
+        entryPoint: 'main',
+        constants: {
+          ParticleCount: this.particleCount,
+          ParticleRadius: this.particleRadius
+        }
+      }
+    });
 
     this.lambdaCalculationPipeline = await device.createComputePipelineAsync({
       label: 'Lambda Calculation Pipeline (PBF)',
@@ -351,7 +354,7 @@ class PBF extends PBFConfig {
         constants: {
           ParticleCount: this.particleCount,
           ParticleVolume: this.particleVolume,
-          ScorrCoef: this.getScorrCoefficient()
+          // ScorrCoef: this.getScorrCoefficient()
         }
       }
     });
@@ -417,8 +420,8 @@ class PBF extends PBFConfig {
     passEncoder.setBindGroup(0, this.neighborBindGroup);
     passEncoder.setBindGroup(1, this.constrainBindGroup);
     for (let i = 0; i < this.constrainIterationCount; i++) {
-      // passEncoder.setPipeline(this.boundaryVolumePipeline);
-      // passEncoder.dispatchWorkgroups(workgroupCount);
+      passEncoder.setPipeline(this.boundaryVolumePipeline);
+      passEncoder.dispatchWorkgroups(workgroupCount);
 
       passEncoder.setPipeline(this.lambdaCalculationPipeline);
       passEncoder.dispatchWorkgroups(workgroupCount);
@@ -445,7 +448,7 @@ class PBF extends PBFConfig {
 
   public async debug() {
 
-    // await BoundaryModel.debug();
+    await this.boundaryModel.debug();
 
     if (PBF.debug) {
       const ce = device.createCommandEncoder();

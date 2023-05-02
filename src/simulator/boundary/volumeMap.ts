@@ -41,26 +41,26 @@ class BoundaryModel {
 
   }
 
-  public static async debug() {
+  public async debug() {
 
-    const field_size = [1, 1, 1];
-    const field_data_size = (
-      (field_size[0] + 1) * (field_size[1] + 1) * (field_size[2] + 1) + 
-      (field_size[0] * 2) * (field_size[1] + 1) * (field_size[2] + 1) + 
-      (field_size[0] + 1) * (field_size[1] * 2) * (field_size[2] + 1) + 
-      (field_size[0] + 1) * (field_size[1] + 1) * (field_size[2] * 2)
-    );
+    // const field_size = [1, 1, 1];
+    // const field_data_size = (
+    //   (field_size[0] + 1) * (field_size[1] + 1) * (field_size[2] + 1) + 
+    //   (field_size[0] * 2) * (field_size[1] + 1) * (field_size[2] + 1) + 
+    //   (field_size[0] + 1) * (field_size[1] * 2) * (field_size[2] + 1) + 
+    //   (field_size[0] + 1) * (field_size[1] + 1) * (field_size[2] * 2)
+    // );
     const result_data_size = 4 * 8;
-    console.log(field_data_size)
+    // console.log(field_data_size)
 
-    const field_data = new Float32Array(field_data_size);
-    field_data.forEach((_, i) => field_data[i] = i);
-    console.log(field_data)
+    // const field_data = new Float32Array(field_data_size);
+    // field_data.forEach((_, i) => field_data[i] = i);
+    // console.log(field_data)
 
-    const field_data_buffer = device.createBuffer({
-      size: field_data_size * Float32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE
-    });
+    // const field_data_buffer = device.createBuffer({
+    //   size: field_data_size * Float32Array.BYTES_PER_ELEMENT,
+    //   usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE
+    // });
     const result_buffer = device.createBuffer({
       size: result_data_size * Float32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.STORAGE
@@ -70,7 +70,7 @@ class BoundaryModel {
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
     });
 
-    device.queue.writeBuffer(field_data_buffer, 0, field_data, 0);
+    // device.queue.writeBuffer(field_data_buffer, 0, field_data, 0);
 
     const bindgroupLayout = device.createBindGroupLayout({
       entries: [
@@ -82,7 +82,7 @@ class BoundaryModel {
     const bindgroup = device.createBindGroup({
       layout: bindgroupLayout,
       entries: [
-        { binding: 0, resource: { buffer: field_data_buffer } },
+        { binding: 0, resource: { buffer: this.field } },
         { binding: 1, resource: { buffer: result_buffer } }
       ]
     });

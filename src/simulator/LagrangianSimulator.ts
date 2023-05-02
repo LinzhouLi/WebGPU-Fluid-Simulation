@@ -15,6 +15,7 @@ abstract class LagrangianSimulator {
     },
   };
 
+  public particleRadius: number;
   public particleCount: number;
   public stepCount: number;
 
