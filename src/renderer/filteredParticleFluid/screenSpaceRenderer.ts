@@ -36,7 +36,7 @@ class ScreenSpaceRenderer {
 
     const layout_group = bindGroupFactory.create(
       [ 
-        'camera', 'directionalLight', 'linearSampler', 
+        'camera', 'directionalLight', 'renderingOptions', 'linearSampler', 
         'fluidDepthMap', 'fluidVolumeMap', 'envMap'
       ],
       resource

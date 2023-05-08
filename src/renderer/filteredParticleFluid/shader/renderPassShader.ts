@@ -4,6 +4,7 @@ const fragmentShader = /* wgsl */`
 
 ${ShaderStruct.Camera}
 ${ShaderStruct.DirectionalLight}
+${ShaderStruct.RenderingOptions}
 
 struct FragInput {
   @location(0) @interpolate(linear, center) coord: vec4<f32>,
@@ -15,10 +16,11 @@ struct FragOutput {
 
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(0) @binding(1) var<uniform> light: DirectionalLight;
-@group(0) @binding(2) var linearSampler: sampler;
-@group(0) @binding(3) var fluidDepthMap: texture_2d<f32>;
-@group(0) @binding(4) var fluidVolumeMap: texture_2d<f32>;
-@group(0) @binding(5) var envMap: texture_cube<f32>;
+@group(0) @binding(2) var<uniform> options: RenderingOptions;
+@group(0) @binding(3) var linearSampler: sampler;
+@group(0) @binding(4) var fluidDepthMap: texture_2d<f32>;
+@group(0) @binding(5) var fluidVolumeMap: texture_2d<f32>;
+@group(0) @binding(6) var envMap: texture_cube<f32>;
 
 ${ShaderFunction.sRGBGammaEncode}
 
@@ -47,11 +49,13 @@ fn getPosition(uv: vec2<f32>, depthEye: f32) -> vec3<f32> {
   );
 }
 
-fn diffuseShading(normalWorld: vec3<f32>) -> vec3<f32> {
+fn diffuseShading(normalEye: vec3<f32>) -> vec4<f32> {
   // simple diffuse shading
+  let normalWorld = (camera.viewMatrixInverse * vec4<f32>(normalEye, 0.0)).xyz;
   let NoL = saturate(dot(normalWorld, light.direction));
   let irradiance = NoL * light.color;
-  return (irradiance + 0.02) * 0.3183098861837907 * vec3<f32>(4, 142, 219) / 256.0; // RECIPROCAL_PI
+  let color = (irradiance + 0.05) * 0.3183098861837907 * options.tintColor; // RECIPROCAL_PI
+  return vec4<f32>(color, 1.0);
 }
 
 fn Fresnel_Schlick(F0: vec3<f32>, VoH: f32) -> vec3<f32> {
@@ -63,28 +67,45 @@ fn shading(
   normalEye: vec3<f32>,
   positionEye: vec3<f32>,
   thickness: f32
-) -> vec3<f32> {
+) -> vec4<f32> {
 
   let viewDirEye = normalize(-positionEye);
   let VoN = saturate(dot(viewDirEye, normalEye));
   let fresnel = Fresnel_Schlick(vec3<f32>(0.02), VoN); // F0 of water is 0.02
-  let attenuate = max(exp(-thickness), 0.2);
-  const tintColor = vec3<f32>(6.0, 105.0, 217.0) / 256.0;
-
-  let reflectDirEye = reflect(-viewDirEye, normalEye);
-  let refractDirEye = refract(-viewDirEye, normalEye, 0.7501875); // 1.0 / 1.333
 
   let normalWorld = (camera.viewMatrixInverse * vec4<f32>(normalEye, 0.0)).xyz;
+
+  let reflectDirEye = reflect(-viewDirEye, normalEye);
   let reflectDirWorld = (camera.viewMatrixInverse * vec4<f32>(reflectDirEye, 0.0)).xyz;
-  let refractDirWorld = (camera.viewMatrixInverse * vec4<f32>(refractDirEye, 0.0)).xyz;
-
   let reflectColor = textureSample(envMap, linearSampler, reflectDirWorld).rgb;
-  let refractColor = textureSample(envMap, linearSampler, refractDirWorld).rgb;
 
-  let color = mix(
-    mix(tintColor, refractColor, attenuate),
-    reflectColor, fresnel
-  );
+  var color: vec4<f32>;
+
+  if (options.mode == 0) {
+    let refractDirEye = refract(-viewDirEye, normalEye, 0.7501875); // 1.0 / 1.333
+    let refractDirWorld = (camera.viewMatrixInverse * vec4<f32>(refractDirEye, 0.0)).xyz;
+    let refractColor = textureSample(envMap, linearSampler, refractDirWorld).rgb;
+
+    let attenuate = exp(-thickness);
+    color = vec4<f32>(
+      mix(
+        mix(options.tintColor, refractColor, attenuate),
+        reflectColor, fresnel
+      ),
+      1.0
+    );
+  }
+  else {
+    let attenuate = exp(-5.0 * thickness);
+    color = vec4<f32>(
+      mix(
+        options.tintColor,
+        reflectColor, fresnel
+      ),
+      1.0 - attenuate
+    );
+  }
+
   return color;
 
 }
@@ -98,11 +119,37 @@ fn main(input: FragInput) -> FragOutput {
   let fluidVolume = textureSample(fluidVolumeMap, linearSampler, input.coord.xy).r;
   let positionEye = getPosition(input.coord.xy, depthEye);
   let normalEye = getNormal(positionEye);
-  let color = shading(normalEye, positionEye, fluidVolume);
 
-  return FragOutput(
-    vec4<f32>(sRGBGammaEncode(color), 1.0),
-  );
+  var color: vec4<f32>;
+
+  switch options.mode {
+    case 2: {
+      color = diffuseShading(normalEye);
+      break;
+    }
+    case 3: {
+      let normalWorld = (camera.viewMatrixInverse * vec4<f32>(normalEye, 0.0)).xyz;
+      color = vec4<f32>(normalWorld, 1.0);
+      break;
+    }
+    case 4: {
+      let posCam = vec4<f32>(0.0, 0.0, -depthEye, 1.0);
+      let posClip = camera.projectionMatrix * posCam;
+      color = vec4<f32>(vec3<f32>(posClip.z / posClip.w), 1.0); // camera depth
+      // color = vec4<f32>(vec3<f32>(depthEye* 0.4), 1.0);
+      break;
+    }
+    case 5: {
+      color = vec4<f32>(vec3<f32>(fluidVolume), 1.0);
+      break;
+    }
+    case 0, 1, default: {
+      color = shading(normalEye, positionEye, fluidVolume);
+    }
+  }
+
+  color = vec4<f32>(sRGBGammaEncode(color.rgb), color.w);
+  return FragOutput( color );
 
 }
 

@@ -1,3 +1,4 @@
+import { ShaderStruct } from "../../../common/shader";
 
 const NarrowRangeFilter = /* wgsl */`
   // Is depth too low? Keep filter symmetric and early out for both opposing values.
@@ -20,16 +21,13 @@ const computeShader = /* wgsl */`
 const MaxFilterSize: u32 = 32;
 const HalfMaxFilterSize: u32 = MaxFilterSize >> 1;
 const SharedDataSize: u32 = MaxFilterSize << 1;
-const Sigma: f32 = f32(HalfMaxFilterSize) / 2.0;
-const GaussianK: f32 = 0.5 / (Sigma * Sigma);
-const ParticleRadius: f32 = 0.025;
-const threshold: f32 = ParticleRadius * 5.0;
-const mu: f32 = ParticleRadius;
+
+${ShaderStruct.RenderingOptions}
 
 @group(0) @binding(0) var srcTexture: texture_2d<f32>;
 @group(0) @binding(1) var destTexture: texture_storage_2d<r32float, write>;
 @group(0) @binding(2) var<uniform> filterDirection: vec2<i32>;
-@group(0) @binding(3) var<uniform> filterSize: i32;
+@group(0) @binding(3) var<uniform> options: RenderingOptions;
 
 var<workgroup> sharedBuffer: array<f32, SharedDataSize>;
 
@@ -40,6 +38,12 @@ fn main(
   @builtin(workgroup_id) block_id: vec3<u32>
 ) {
 
+  let HalfFilterSize: u32 = options.filterSize >> 1;
+  let Sigma: f32 = f32(HalfFilterSize) * 0.5;
+  let GaussianK: f32 = 0.5 / (Sigma * Sigma);
+  let threshold: f32 = options.radius * 5.0;
+  let mu: f32 = options.radius;
+
   // preload to shared buffer
   let texCoord = 
     i32(block_id.x * MaxFilterSize + thread_id) * filterDirection + 
@@ -49,7 +53,7 @@ fn main(
   workgroupBarrier();
 
   // filter
-  let sharedBufferCenterIndex = thread_id + HalfMaxFilterSize;
+  let sharedBufferCenterIndex = thread_id + HalfFilterSize;
   let centerSampleValue = sharedBuffer[sharedBufferCenterIndex];
   if (centerSampleValue > 0.0) {
     var valueSum: f32 = centerSampleValue;
@@ -60,7 +64,7 @@ fn main(
     var thresholdLow = centerSampleValue - threshold;
     var thresholdHigh = centerSampleValue + threshold;
     let valueBoundHigh = centerSampleValue + mu;
-    for (var i: u32 = 1; i <= HalfMaxFilterSize; i++) {
+    for (var i: u32 = 1; i <= HalfFilterSize; i++) {
       sampleValue.x = sharedBuffer[sharedBufferCenterIndex - i];
       sampleValue.y = sharedBuffer[sharedBufferCenterIndex + i];
 

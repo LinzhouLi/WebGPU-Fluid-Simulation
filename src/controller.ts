@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GlobalResource } from './renderer/globalResource';
+import { Config } from './common/config';
 import { ParticleFluid } from './renderer/particleFluid/fluid';
 import { FilteredParticleFluid } from './renderer/filteredParticleFluid/fluid'
 import { Skybox } from './renderer/skybox/skybox';
@@ -82,6 +83,7 @@ let canvasSize: { width: number, height: number };
 class Controller {
 
   // basic
+  private config: Config;
   private canvas: HTMLCanvasElement;
   private context: GPUCanvasContext;
   private renderBundle: GPURenderBundle;
@@ -97,6 +99,7 @@ class Controller {
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
+    this.config = new Config();
   }
 
   private RegisterResourceFormats() {
@@ -184,6 +187,8 @@ class Controller {
     // fluid renderer
     this.fluidRender = new FilteredParticleFluid(this.simulator, this.camera);
     await this.fluidRender.initResource(this.globalResource.resource);
+    this.config.initRenderingOptions((e) => this.fluidRender.optionsChange(e));
+    this.fluidRender.setConfig(this.config.renderingOptions);
 
     const renderBundleEncoder = device.createRenderBundleEncoder({
       colorFormats: [ canvasFormat ],

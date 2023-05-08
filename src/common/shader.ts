@@ -37,7 +37,17 @@ struct SphereMaterial {
 };
 `;
 
-const ShaderStruct = { Camera, DirectionalLight, Transform, MeshMaterial, SphereMaterial };
+const RenderingOptions = /* wgsl */`
+struct RenderingOptions {
+  mode: u32,
+  filterSize: u32,
+  radius: f32,
+  tickness: f32,
+  tintColor: vec3<f32>
+}
+`;
+
+const ShaderStruct = { Camera, DirectionalLight, Transform, MeshMaterial, SphereMaterial, RenderingOptions };
 
 
 const sRGBGammaEncode = /* wgsl */`

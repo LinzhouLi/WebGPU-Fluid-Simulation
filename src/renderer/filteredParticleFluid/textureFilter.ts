@@ -9,8 +9,6 @@ class TextureFilter {
   protected filterTexture: GPUTexture;
   protected tempTexture: GPUTexture;
 
-  protected filterSize: Int32Array;
-  protected filterSizeBuffer: GPUBuffer;
   protected filterDirBuffer: {
     X: GPUBuffer;
     Y: GPUBuffer;
@@ -28,6 +26,7 @@ class TextureFilter {
   }
 
   public async initResource(
+    optionsBuffer: GPUBuffer,
     filterTexture: GPUTexture,
     textureSize: number[]
   ) {
@@ -36,7 +35,7 @@ class TextureFilter {
     this.textureSize = textureSize;
     
     this.initGroupResource();
-    this.initBindGroup();
+    this.initBindGroup(optionsBuffer);
     await this.initPipeline();
 
   }
@@ -48,12 +47,6 @@ class TextureFilter {
       size: this.textureSize,
       format: 'r32float',
       usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT
-    });
-
-    // filter size buffer
-    this.filterSize = new Int32Array(1);
-    this.filterSizeBuffer = device.createBuffer({
-      size: 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM
     });
 
     // filter direction buffer [1, 0] & [0, 1]
@@ -73,7 +66,7 @@ class TextureFilter {
 
   }
 
-  protected initBindGroup() {
+  protected initBindGroup(optionsBuffer: GPUBuffer) {
 
     this.bindGroupLayout = device.createBindGroupLayout({
       label: 'Filter Pipeline Bind Group Layout',
@@ -102,7 +95,7 @@ class TextureFilter {
         { binding: 0, resource: filterTextureView }, 
         { binding: 1, resource: tempTextureView },
         { binding: 2, resource: { buffer: this.filterDirBuffer.X } },
-        { binding: 3, resource: { buffer: this.filterSizeBuffer } }
+        { binding: 3, resource: { buffer: optionsBuffer } }
       ]
     });
 
@@ -113,7 +106,7 @@ class TextureFilter {
         { binding: 0, resource: tempTextureView }, 
         { binding: 1, resource: filterTextureView },
         { binding: 2, resource: { buffer: this.filterDirBuffer.Y } },
-        { binding: 3, resource: { buffer: this.filterSizeBuffer } }
+        { binding: 3, resource: { buffer: optionsBuffer } }
       ]
     });
 
@@ -129,16 +122,6 @@ class TextureFilter {
         entryPoint: 'main',
       }
     });
-
-  }
-
-  public setFilterSize(filterSize: number) {
-
-    this.filterSize.set([filterSize]);
-    device.queue.writeBuffer(
-      this.filterSizeBuffer, 0, 
-      this.filterSize, 0
-    );
 
   }
 

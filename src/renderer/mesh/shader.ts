@@ -61,7 +61,7 @@ fn main(input: FragmentInput) -> FragmentOutput {
   // simple diffuse shading
   let NoL = saturate(dot(normalize(input.vNormal), light.direction));
   let irradiance = NoL * light.color;
-  let diffuse = (irradiance + 0.02) * 0.3183098861837907 * material.color; // RECIPROCAL_PI
+  let diffuse = (irradiance + 0.05) * 0.3183098861837907 * material.color; // RECIPROCAL_PI
 
   return FragmentOutput(
     vec4<f32>(sRGBGammaEncode(diffuse), 1.0)

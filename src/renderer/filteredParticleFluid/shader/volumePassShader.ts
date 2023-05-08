@@ -3,7 +3,7 @@ import { ShaderStruct } from "../../../common/shader";
 
 const volumePassVertexShader = /* wgsl */`
 ${ShaderStruct.Camera}
-${ShaderStruct.SphereMaterial}
+${ShaderStruct.RenderingOptions}
 
 struct VertexInput {
   @builtin(vertex_index) vertexIndex: u32,
@@ -17,7 +17,7 @@ struct VertexOutput {
 };
 
 @group(0) @binding(0) var<uniform> camera: Camera;
-@group(0) @binding(1) var<uniform> material: SphereMaterial;
+@group(0) @binding(1) var<uniform> options: RenderingOptions;
 @group(0) @binding(2) var<storage> instancePositions: array<vec3<f32>>;
 
 const positions = array<vec2<f32>, 4>(
@@ -33,7 +33,7 @@ fn main(input: VertexInput) -> VertexOutput {
   let uv = position + 0.5;
   let centerPositonCam = camera.viewMatrix * vec4<f32>(instancePositions[input.instanceIndex], 1.0);
   // expand volume support scope of a particle (x2.0)
-  let positionCam = centerPositonCam + vec4<f32>(position * material.sphereRadius * 2.0, 0.0, 0.0);
+  let positionCam = centerPositonCam + vec4<f32>(position * options.radius * 2.0, 0.0, 0.0);
   let positionScreen = camera.projectionMatrix * positionCam;
   return VertexOutput(
     positionScreen, positionCam, uv
@@ -45,7 +45,7 @@ fn main(input: VertexInput) -> VertexOutput {
 const volumePassfragmentShader = /* wgsl */`
 ${ShaderStruct.Camera}
 ${ShaderStruct.DirectionalLight}
-${ShaderStruct.SphereMaterial}
+${ShaderStruct.RenderingOptions}
 
 struct FragmentInput {
   @location(0) @interpolate(perspective, center) vPositionCam: vec4<f32>,
@@ -57,7 +57,7 @@ struct FragmentOutput {
 };
 
 @group(0) @binding(0) var<uniform> camera: Camera;
-@group(0) @binding(1) var<uniform> material: SphereMaterial;
+@group(0) @binding(1) var<uniform> options: RenderingOptions;
 @group(0) @binding(3) var<uniform> light: DirectionalLight;
 
 @fragment
@@ -69,7 +69,7 @@ fn main(input: FragmentInput) -> FragmentOutput {
   if (radius2 > 1.0) { discard; }
 
   // caculate volume // sigma = xxx
-  let volume = exp(-radius2 * 2.0) * 0.005;
+  let volume = exp(-radius2 * 2.0) * 0.02 * options.tickness;
 
   return FragmentOutput( volume );
 }

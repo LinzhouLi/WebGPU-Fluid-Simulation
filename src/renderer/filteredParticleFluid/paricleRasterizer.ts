@@ -1,11 +1,15 @@
-import { device, canvasSize } from '../../controller';
-import { ParticleFluid } from '../particleFluid/fluid';
+import { device } from '../../controller';
 import { LagrangianSimulator } from '../../simulator/LagrangianSimulator';
-import { depthPassfragmentShader } from './shader/depthPassShader';
+import { depthPassVertexShader, depthPassfragmentShader } from './shader/depthPassShader';
 import { volumePassVertexShader, volumePassfragmentShader } from './shader/volumePassShader';
 
 
-class ParicleRasterizer extends ParticleFluid {
+class ParicleRasterizer {
+
+  protected simulator: LagrangianSimulator;
+
+  protected bindGroupLayout: GPUBindGroupLayout;
+  protected bindGroup: GPUBindGroup;
 
   protected depthRenderPipeline: GPURenderPipeline;
   protected volumeRenderPipeline: GPURenderPipeline;
@@ -17,24 +21,67 @@ class ParicleRasterizer extends ParticleFluid {
 
   constructor(simulator: LagrangianSimulator) {
 
-    super(simulator);
+    this.simulator = simulator;
 
   }
 
-  public override async initResource(
-    globalResource: { [x: string]: GPUBuffer | GPUTexture | GPUSampler }
+  public async initResource(
+    resource: { [x: string]: GPUBuffer | GPUTexture | GPUSampler }
   ) {
 
-    this.depthStencilView = (globalResource.renderDepthMap as GPUTexture).createView();
+    this.depthStencilView = (resource.renderDepthMap as GPUTexture).createView();
 
-    await this.initGroupResource();
-    this.initBindGroup(globalResource);
+    this.initBindGroup(resource);
     await this.initPipeline()
     this.initRenderBundle();
 
   }
 
-  protected override async initPipeline() {
+  protected initBindGroup(
+    resource: { [x: string]: GPUBuffer | GPUTexture | GPUSampler }
+  ) {
+    
+    this.bindGroupLayout = device.createBindGroupLayout({
+      label: 'Particle Rendering Pipeline Bind Group Layout',
+      entries: [{ // camera
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: { type: 'uniform' }
+      }, { // Rendering Options
+        binding: 1,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: { type: 'uniform' }
+      }, { // instance positions
+        binding: 2,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: { type: 'read-only-storage' }
+      }, { // light
+        binding: 3,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: 'uniform' }
+      }]
+    });
+
+    this.bindGroup = device.createBindGroup({
+      label: 'Particle Rendering Pipeline Bind Group',
+      layout: this.bindGroupLayout,
+      entries: [{ // camera
+        binding: 0,
+        resource: { buffer: resource.camera as GPUBuffer },
+      }, { // Rendering Options
+        binding: 1,
+        resource: { buffer: resource.renderingOptions as GPUBuffer }
+      }, { // instance positions
+        binding: 2,
+        resource: { buffer: this.simulator.particlePositionBuffer }
+      }, { // light
+        binding: 3,
+        resource: { buffer: resource.directionalLight as GPUBuffer }
+      }]
+    })
+  }
+
+  protected async initPipeline() {
 
     // depth pass
     this.depthRenderPipeline = await device.createRenderPipelineAsync({
@@ -43,7 +90,7 @@ class ParicleRasterizer extends ParticleFluid {
         bindGroupLayouts: [this.bindGroupLayout]
       }),
       vertex: {
-        module: device.createShaderModule({ code: this.vertexShaderCode }),
+        module: device.createShaderModule({ code: depthPassVertexShader }),
         entryPoint: 'main'
       },
       fragment: {

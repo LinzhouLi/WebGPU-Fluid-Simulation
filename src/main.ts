@@ -54,7 +54,7 @@ class Main {
     new OrbitControls(camera, this.canvas);
 
     let light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set( 0, 0, 10 );
+    light.position.set( -10, 20, -10 );
 
     await this.controller.initWebGPU();
     await this.controller.initScene(camera, light);
