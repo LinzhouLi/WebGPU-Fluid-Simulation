@@ -56,6 +56,7 @@ class PBF extends PBFConfig {
   private boundaryModel: BoundaryModel;
   private neighborSearch: NeighborSearch;
 
+  private pause: boolean;
   private gravityArray: Float32Array;
 
   private static debug = false;
@@ -66,6 +67,7 @@ class PBF extends PBFConfig {
   constructor() {
 
     super(34 * 34 * 34);
+    this.pause = true;
 
   }
 
@@ -291,7 +293,33 @@ class PBF extends PBFConfig {
 
   }
 
-  public enableInteraction() { }
+  public enableInteraction() {
+
+    document.addEventListener('keydown', event => {
+      if (event.key.toUpperCase() === 'W') {
+        this.gravityArray.set([-9.8, 0, 0, 0]);
+      }
+      else if (event.key.toUpperCase() === 'A') {
+        this.gravityArray.set([0, 0, 9.8, 0]);
+      }
+      else if (event.key.toUpperCase() === 'S') {
+        this.gravityArray.set([9.8, 0, 0, 0]);
+      }
+      else if (event.key.toUpperCase() === 'D') {
+        this.gravityArray.set([0, 0, -9.8, 0]);
+      }
+      else if (event.key.toUpperCase() === 'Q') {
+        this.gravityArray.set([0, 9.8, 0, 0]);
+      }
+      else if (event.key.toUpperCase() === 'E') {
+        this.gravityArray.set([0, -9.8, 0, 0]);
+      }
+      else if (event.key.toUpperCase() === ' ') {
+        this.pause = !this.pause;
+      }
+    });
+
+  }
 
   public async initComputePipeline() {
 
@@ -406,6 +434,8 @@ class PBF extends PBFConfig {
 
   public run(commandEncoder: GPUCommandEncoder) {
 
+    if (this.pause) return;
+
     this.neighborSearch.clearBuffer(commandEncoder);
     
     const passEncoder = commandEncoder.beginComputePass();
@@ -444,7 +474,12 @@ class PBF extends PBFConfig {
   
   }
 
-  public update() { }
+  public update() {
+    device.queue.writeBuffer(
+      this.gravity as GPUBuffer, 0,
+      this.gravityArray, 0
+    );
+  }
 
   public async debug() {
 

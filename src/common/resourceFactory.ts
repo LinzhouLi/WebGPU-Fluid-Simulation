@@ -4,7 +4,7 @@ import type { TypedArray } from './base';
 type ResourceType = 'buffer' | 'sampler' | 'texture' | 'cube-texture' | 'texture-array';
 
 interface BufferData {
-  value?: TypedArray
+  value?: TypedArray | ArrayBuffer
   size?: number
 };
 

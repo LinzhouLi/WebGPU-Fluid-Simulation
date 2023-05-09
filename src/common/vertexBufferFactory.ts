@@ -1,4 +1,5 @@
 import { device } from '../controller';
+import type { TypedArray } from './base';
 
 
 const VertexBufferFormat = {
@@ -38,8 +39,6 @@ const VertexBufferFormat = {
 };
 
 
-
-type TypedArray = Float64Array | Float32Array | Int32Array | Uint32Array | Int16Array | Uint16Array | Int8Array | Uint8Array;
 
 class VertexBufferFactory {
 
@@ -89,7 +88,7 @@ class VertexBufferFactory {
         throw new Error(`Invalide Type of Vertex Buffer Attribute '${attribute}'. Should Be ${VertexBufferFormat[attribute].cpuFormat}, But Got ${Object.prototype.toString.call(data[attribute])}.`)
 
       if (data[attribute].byteLength % 4 != 0) {
-        // Number of bytes to write must be a multiple of 4
+        // Number of bytes to write must be a multiple of 4 
         data[attribute] = new Uint16Array([...data[attribute], 0]);
       }
       const buffer = device.createBuffer({

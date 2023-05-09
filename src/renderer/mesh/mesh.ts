@@ -101,7 +101,7 @@ class Mesh {
       },
       meshMaterial: {
         value: new Float32Array([
-          material.shininess, 0, 0, 0,// ???
+          material.shininess, 0, 0, 0, // ???
           ...material.color.toArray(), 0 // fix bug: bind group is too small!
         ])
       }
@@ -152,7 +152,8 @@ class Mesh {
       },
       primitive: {
         topology: 'triangle-list',
-        cullMode: 'back'
+        // cullMode: 'back'
+        cullMode: 'none'
       }, 
       depthStencil: {
         depthWriteEnabled: true,

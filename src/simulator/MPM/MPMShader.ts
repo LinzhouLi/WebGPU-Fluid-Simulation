@@ -1,4 +1,4 @@
-import { wgsl } from '../3rd-party/wgsl-preprocessor';
+import { wgsl } from '../../3rd-party/wgsl-preprocessor';
 
 function P2GComputeShader(n_particle: number, n_grid: number) {
 

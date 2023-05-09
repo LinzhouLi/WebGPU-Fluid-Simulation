@@ -7,12 +7,12 @@ abstract class PBFConfig extends LagrangianSimulator {
   static BOUNDARY_GRID = [20, 20, 20];
 
   protected constrainIterationCount = 5;
-  protected timeStep = 1 / 100;
+  protected timeStep = 1 / 500;
   protected lambdaEPS = 1e-6;
   protected scorrCoefK = 1e-6;
   protected scorrCoefDq = 1e-4; // [0.1, 0.3]
   protected scorrCoefN = 4; // fixed
-  protected XSPHCoef = 0.80;
+  protected XSPHCoef = 0.10;
   protected restDensity: number = 1000.0;
   protected particleVolume: number;
   protected particleWeight: number;

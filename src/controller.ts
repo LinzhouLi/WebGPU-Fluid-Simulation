@@ -6,7 +6,7 @@ import { FilteredParticleFluid } from './renderer/filteredParticleFluid/fluid'
 import { Skybox } from './renderer/skybox/skybox';
 import { Mesh } from './renderer/mesh/mesh';
 import { LagrangianSimulator } from './simulator/LagrangianSimulator';
-// import { MPM } from './simulator/MPM';
+// import { MPM } from './simulator/MPM/MPM';
 import { PBF } from './simulator/PBF/PBF';
 import { loader } from './common/loader';
 
@@ -105,7 +105,6 @@ class Controller {
   private RegisterResourceFormats() {
     GlobalResource.RegisterResourceFormats();
     Mesh.RegisterResourceFormats();
-    ParticleFluid.RegisterResourceFormats();
     FilteredParticleFluid.RegisterResourceFormats();
     LagrangianSimulator.RegisterResourceFormats();
     // MPM._RegisterResourceFormats();

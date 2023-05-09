@@ -116,7 +116,6 @@ class FilteredParticleFluid {
     filterSize: number,
     particleRadius: number,
     particleTickness: number,
-    refraction: boolean,
     tintColor: { r: number, g: number, b: number }
   }) {
 
@@ -129,7 +128,6 @@ class FilteredParticleFluid {
     this.optionsBufferView.setFloat32(20, config.tintColor.g / 255.0, true);
     this.optionsBufferView.setFloat32(24, config.tintColor.b / 255.0, true);
     device.queue.writeBuffer(this.resource.renderingOptions as GPUBuffer, 0, this.optionsArray, 0 );
-    console.log(new Float32Array(this.optionsArray));
 
   }
 

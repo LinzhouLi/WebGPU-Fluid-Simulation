@@ -1,8 +1,8 @@
-import { device } from '../controller';
-import type { ResourceType } from '../common/resourceFactory';
-import { ResourceFactory } from '../common/resourceFactory';
-import { LagrangianSimulator } from "./LagrangianSimulator";
-import { resourceFactory, bindGroupFactory } from '../common/base';
+import { device } from '../../controller';
+import type { ResourceType } from '../../common/resourceFactory';
+import { ResourceFactory } from '../../common/resourceFactory';
+import { LagrangianSimulator } from "../LagrangianSimulator";
+import { resourceFactory, bindGroupFactory } from '../../common/base';
 import { P2GComputeShader, GridComputeShader, G2PComputeShader } from './MPMShader';
 
 class MPM extends LagrangianSimulator {
