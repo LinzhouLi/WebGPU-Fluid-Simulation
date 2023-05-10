@@ -167,7 +167,7 @@ class GlobalResource {
     this.camera.position.setFromMatrixPosition(this.camera.matrixWorld);
 
     const cameraBufferData = this.resourceData.camera as BufferData;
-    cameraBufferData.value.set([
+    (cameraBufferData.value as TypedArray).set([
       ...this.camera.position.toArray(), 0,
       ...this.camera.matrixWorldInverse.toArray(),
       ...this.camera.matrixWorld.toArray(),

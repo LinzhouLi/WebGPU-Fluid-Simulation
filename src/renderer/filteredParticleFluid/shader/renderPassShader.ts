@@ -69,9 +69,14 @@ fn shading(
   thickness: f32
 ) -> vec4<f32> {
 
+  const n_water = 1.333333;
+  const n_water_inv = 1.0 / n_water;
+  const F_0_t = (n_water - 1) / (n_water + 1);
+  const F_0 = vec3<f32>(F_0_t * F_0_t);
+
   let viewDirEye = normalize(-positionEye);
   let VoN = saturate(dot(viewDirEye, normalEye));
-  let fresnel = Fresnel_Schlick(vec3<f32>(0.02), VoN); // F0 of water is 0.02
+  let fresnel = Fresnel_Schlick(F_0, VoN); // F0 of water is 0.02
 
   let normalWorld = (camera.viewMatrixInverse * vec4<f32>(normalEye, 0.0)).xyz;
 
@@ -82,7 +87,7 @@ fn shading(
   var color: vec4<f32>;
 
   if (options.mode == 0) {
-    let refractDirEye = refract(-viewDirEye, normalEye, 0.7501875); // 1.0 / 1.333
+    let refractDirEye = refract(-viewDirEye, normalEye, n_water_inv); // 1.0 / 1.333
     let refractDirWorld = (camera.viewMatrixInverse * vec4<f32>(refractDirEye, 0.0)).xyz;
     let refractColor = textureSample(envMap, linearSampler, refractDirWorld).rgb;
 
@@ -115,10 +120,10 @@ fn main(input: FragInput) -> FragOutput {
 
   let frameCoord = vec2<u32>(floor(input.coord.zw));
   let depthEye = textureLoad(fluidDepthMap, frameCoord, 0).r;
-  if (depthEye == 0.0) { discard; }
-  let fluidVolume = textureSample(fluidVolumeMap, linearSampler, input.coord.xy).r;
   let positionEye = getPosition(input.coord.xy, depthEye);
   let normalEye = getNormal(positionEye);
+  if (depthEye == 0.0) { discard; }
+  let fluidVolume = textureSample(fluidVolumeMap, linearSampler, input.coord.xy).r;
 
   var color: vec4<f32>;
 

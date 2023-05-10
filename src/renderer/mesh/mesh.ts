@@ -152,8 +152,8 @@ class Mesh {
       },
       primitive: {
         topology: 'triangle-list',
-        // cullMode: 'back'
-        cullMode: 'none'
+        cullMode: 'back'
+        // cullMode: 'none'
       }, 
       depthStencil: {
         depthWriteEnabled: true,

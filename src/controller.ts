@@ -196,7 +196,6 @@ class Controller {
     this.globalResource.setRenderBundle(renderBundleEncoder);
     this.mesh.setRenderBundle(renderBundleEncoder);
     this.skybox.setRenderBundle(renderBundleEncoder);
-    // this.particles.setRenderBundle(renderBundleEncoder);
     this.renderBundle = renderBundleEncoder.finish();
 
   }
@@ -214,7 +213,7 @@ class Controller {
     const renderPassEncoder = commandEncoder.beginRenderPass({
       colorAttachments: [{
         view: ctxTextureView,
-        clearValue: { r: 0, g: 0, b: 0, a: 0.0 },
+        clearValue: { r: 1, g: 1, b: 1, a: 1.0 },
         loadOp: 'clear',
         storeOp: 'store'
       }],

@@ -17,6 +17,8 @@ class Main {
     const devicePixelRatio = window.devicePixelRatio || 1;
     this.canvas.width = this.canvas.clientWidth * devicePixelRatio;
     this.canvas.height = this.canvas.clientHeight * devicePixelRatio;
+    // this.canvas.width = 1920;
+    // this.canvas.height = Math.round(1920 * this.canvas.clientHeight / this.canvas.clientWidth);
     this.controller = new Controller(this.canvas);
 
     this.stats = new Stats();
@@ -48,7 +50,7 @@ class Main {
 
   async init() {
 
-    const camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 50 );
+    const camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.7, 2.2 );
     camera.position.set( 2, 2, 0 );
     camera.lookAt( 0, 0, 0 );
     new OrbitControls(camera, this.canvas);
