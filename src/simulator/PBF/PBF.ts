@@ -450,8 +450,8 @@ class PBF extends PBFConfig {
     passEncoder.setBindGroup(0, this.neighborBindGroup);
     passEncoder.setBindGroup(1, this.constrainBindGroup);
     for (let i = 0; i < this.constrainIterationCount; i++) {
-      // passEncoder.setPipeline(this.boundaryVolumePipeline);
-      // passEncoder.dispatchWorkgroups(workgroupCount);
+      passEncoder.setPipeline(this.boundaryVolumePipeline);
+      passEncoder.dispatchWorkgroups(workgroupCount);
 
       passEncoder.setPipeline(this.lambdaCalculationPipeline);
       passEncoder.dispatchWorkgroups(workgroupCount);
