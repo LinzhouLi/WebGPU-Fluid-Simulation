@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
@@ -21,18 +22,28 @@ class Loader {
 
   }
 
-  public loadGLTF(path: string) {
+  public loadGLTF(path: string, compressed: boolean = false) {
 
     return new Promise((
       resolve: (gltf: any) => void, 
       reject: (reason: any) => void
-    ) => { 
-      this.loaderGLTF.load( 
-        path, 
-        gltf => { resolve( gltf ); }, // onLoad
-        null, // onProgress
-        error => reject(error) // onError
-      );
+    ) => {
+      if (compressed) {
+        this.loaderGLTF.setMeshoptDecoder(MeshoptDecoder).load( 
+          path, 
+          gltf => { resolve( gltf ); }, // onLoad
+          null, // onProgress
+          error => reject(error) // onError
+        );
+      }
+      else {
+        this.loaderGLTF.load( 
+          path, 
+          gltf => { resolve( gltf ); }, // onLoad
+          null, // onProgress
+          error => reject(error) // onError
+        );
+      }
     });
 
   }

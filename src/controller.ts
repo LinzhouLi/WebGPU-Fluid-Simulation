@@ -86,10 +86,13 @@ class Controller {
   private config: Config;
   private canvas: HTMLCanvasElement;
   private context: GPUCanvasContext;
-  private renderBundle: GPURenderBundle;
   private renderDepthView: GPUTextureView;
   private camera: THREE.PerspectiveCamera;
   private globalResource: GlobalResource;
+
+  private ifSkybox: boolean;
+  private ifMesh: boolean;
+  private ifFluid: boolean;
 
   private skybox: Skybox;
   private mesh: Mesh;
@@ -145,9 +148,22 @@ class Controller {
 
   }
 
+  private setSceneConfig(config: {
+    skybox: boolean,
+    mesh: boolean,
+    fluid: boolean
+  }) {
+    this.ifSkybox = config.skybox;
+    this.ifMesh = config.mesh;
+    this.ifFluid = config.fluid;
+  }
+
   public async initScene(camera: THREE.PerspectiveCamera, light: THREE.DirectionalLight) {
     
     this.RegisterResourceFormats();
+
+    this.config.initSceneOptions((e) => this.setSceneConfig(e.object));
+    this.setSceneConfig(this.config.scnenOptions);
 
     // global resource
     this.camera = camera;
@@ -174,10 +190,22 @@ class Controller {
     await this.mesh.initResouce(this.globalResource.bindgroupLayout);
 
     // PBF simulator
+    const glb = await loader.loadGLTF("model/bunny.glb", true);
+    const bunny_mesh = glb.scene.children[0] as THREE.Mesh;
+    bunny_mesh.scale.set(0.45, 0.45, 0.45);
+    bunny_mesh.position.set(0.5, 0.3, 0.5);
+
     this.simulator = new PBF();
+    this.simulator.voxelizeMesh(bunny_mesh);
+    // this.simulator.voxelizeCube(
+    //   new THREE.Vector3(0.15, 0.35, 0.15),
+    //   new THREE.Vector3(0.65, 0.85, 0.65)
+    // );
+    this.simulator.initPositionBuffer();
     await this.simulator.initResource();
     await this.simulator.initComputePipeline();
     this.simulator.enableInteraction();
+    console.log(this.simulator.particleCount);
 
     // particles
     // this.particles = new ParticleFluid(this.simulator);
@@ -188,15 +216,6 @@ class Controller {
     await this.fluidRender.initResource(this.globalResource.resource);
     this.config.initRenderingOptions((e) => this.fluidRender.optionsChange(e));
     this.fluidRender.setConfig(this.config.renderingOptions);
-
-    const renderBundleEncoder = device.createRenderBundleEncoder({
-      colorFormats: [ canvasFormat ],
-      depthStencilFormat: 'depth32float' // format of renderDepthMap
-    });
-    this.globalResource.setRenderBundle(renderBundleEncoder);
-    this.mesh.setRenderBundle(renderBundleEncoder);
-    this.skybox.setRenderBundle(renderBundleEncoder);
-    this.renderBundle = renderBundleEncoder.finish();
 
   }
 
@@ -224,10 +243,12 @@ class Controller {
         depthStoreOp: 'store',
       }
     });
-    renderPassEncoder.executeBundles([this.renderBundle]);
+    this.globalResource.setResource(renderPassEncoder);
+    if(this.ifMesh) this.mesh.render(renderPassEncoder);
+    if(this.ifSkybox) this.skybox.render(renderPassEncoder);
     renderPassEncoder.end();
 
-    this.fluidRender.render(commandEncoder, ctxTextureView);
+    if (this.ifFluid) this.fluidRender.render(commandEncoder, ctxTextureView);
 
 		const commandBuffer = commandEncoder.finish();
     device.queue.submit([commandBuffer]);

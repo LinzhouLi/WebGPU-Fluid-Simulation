@@ -91,14 +91,14 @@ class Skybox {
 
   }
 
-  public setRenderBundle(
-    bundleEncoder: GPURenderBundleEncoder
+  public render(
+    encoder: GPURenderBundleEncoder | GPURenderPassEncoder
   ) {
     
-    bundleEncoder.setPipeline(this.renderPipeline);
-    bundleEncoder.setIndexBuffer(this.vertexBuffers.index, 'uint16');
-    bundleEncoder.setVertexBuffer(0, this.vertexBuffers.position);
-    bundleEncoder.drawIndexed(this.vertexCount);
+    encoder.setPipeline(this.renderPipeline);
+    encoder.setIndexBuffer(this.vertexBuffers.index, 'uint16');
+    encoder.setVertexBuffer(0, this.vertexBuffers.position);
+    encoder.drawIndexed(this.vertexCount);
 
   }
 

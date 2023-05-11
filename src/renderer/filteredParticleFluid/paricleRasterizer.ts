@@ -73,7 +73,10 @@ class ParicleRasterizer {
         resource: { buffer: resource.renderingOptions as GPUBuffer }
       }, { // instance positions
         binding: 2,
-        resource: { buffer: this.simulator.particlePositionBuffer }
+        resource: { 
+          buffer: this.simulator.particlePositionBuffer, 
+          size: 4 * this.simulator.particleCount * Float32Array.BYTES_PER_ELEMENT
+        }
       }, { // light
         binding: 3,
         resource: { buffer: resource.directionalLight as GPUBuffer }

@@ -4,6 +4,12 @@ class Config {
 
   private gui: GUI;
 
+  public scnenOptions = {
+    skybox: true,
+    mesh: true,
+    fluid: true
+  }
+
   public renderingOptions = {
     mode: 0,
     filterSize: 32,
@@ -14,6 +20,16 @@ class Config {
 
   constructor() {
     this.gui = new GUI();
+  }
+
+  public initSceneOptions(onChangeFunc: (msg) => void) {
+
+    const sceneOptionGUI = this.gui.addFolder('Scene Options');
+    sceneOptionGUI.add(this.scnenOptions, 'skybox');
+    sceneOptionGUI.add(this.scnenOptions, 'mesh');
+    sceneOptionGUI.add(this.scnenOptions, 'fluid');
+    sceneOptionGUI.onFinishChange(onChangeFunc);
+
   }
 
   public initRenderingOptions(onChangeFunc: (msg) => void) {
@@ -27,6 +43,13 @@ class Config {
     renderingOptionGUI.add(this.renderingOptions, 'particleTickness', 0, 1.0);
     renderingOptionGUI.addColor(this.renderingOptions, 'tintColor', 255);
     renderingOptionGUI.onFinishChange(onChangeFunc);
+    
+  }
+
+  public initSimulationOptions(onChangeFunc: (msg) => void) {
+
+    const simulationOptionGUI = this.gui.addFolder('Fluid Simulation Options');
+    simulationOptionGUI.onFinishChange(onChangeFunc);
     
   }
 

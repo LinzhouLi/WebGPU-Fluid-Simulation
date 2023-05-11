@@ -153,11 +153,11 @@ class GlobalResource {
 
   }
 
-  public async setRenderBundle(
-    bundleEncoder: GPURenderBundleEncoder
+  public async setResource(
+    encoder: GPURenderBundleEncoder | GPURenderPassEncoder
   ) {
 
-    bundleEncoder.setBindGroup(0, this.bindgroup);
+    encoder.setBindGroup(0, this.bindgroup);
 
   }
 

@@ -1228,6 +1228,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"three-mesh-bvh@npm:^0.5.23":
+  version: 0.5.23
+  resolution: "three-mesh-bvh@npm:0.5.23"
+  peerDependencies:
+    three: ">= 0.123.0"
+  checksum: 40f582140994c6d8e7ec0d8ab990215483b08c7245963b778e6c2389c7a8f7b6287dbecb071f8a5351b2c91b7e31aae717b0dfcd6aace0c6b6d67d09927218f4
+  languageName: node
+  linkType: hard
+
 "three@npm:^0.148.0":
   version: 0.148.0
   resolution: "three@npm:0.148.0"
@@ -1327,6 +1336,7 @@ __metadata:
     lil-gui: ^0.18.1
     stats.js: ^0.17.0
     three: ^0.148.0
+    three-mesh-bvh: ^0.5.23
     typescript: ^4.9.3
     vite: ^4.0.0
   languageName: unknown

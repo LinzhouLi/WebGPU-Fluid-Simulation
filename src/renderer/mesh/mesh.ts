@@ -173,8 +173,8 @@ class Mesh {
 
   }
 
-  public setRenderBundle(
-    bundleEncoder: GPURenderBundleEncoder
+  public render(
+    encoder: GPURenderBundleEncoder | GPURenderPassEncoder
   ) {
     
     // set vertex and index buffers
@@ -182,22 +182,22 @@ class Mesh {
     let indexed = false;
     for (const attribute of this.vertexBufferAttributes) {
       if (attribute === 'index') {
-        bundleEncoder.setIndexBuffer(this.vertexBuffers.index, 'uint16');
+        encoder.setIndexBuffer(this.vertexBuffers.index, 'uint16');
         indexed = true;
       }
       else {
-        bundleEncoder.setVertexBuffer(loction, this.vertexBuffers[attribute]);
+        encoder.setVertexBuffer(loction, this.vertexBuffers[attribute]);
         loction++;
       }
     }
 
     // set bind group
-    bundleEncoder.setBindGroup(1, this.bindgroup);
-    bundleEncoder.setPipeline(this.pipeline);
+    encoder.setBindGroup(1, this.bindgroup);
+    encoder.setPipeline(this.pipeline);
 
     // draw
-    if (indexed) bundleEncoder.drawIndexed(this.vertexCount);
-    else bundleEncoder.draw(this.vertexCount);
+    if (indexed) encoder.drawIndexed(this.vertexCount);
+    else encoder.draw(this.vertexCount);
 
   }
 

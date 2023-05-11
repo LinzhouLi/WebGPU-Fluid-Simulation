@@ -34,7 +34,6 @@ class PBF extends PBFConfig {
   private lambda: GPUBuffer;
   private velocity: GPUBuffer;
   private velocityCopy: GPUBuffer;
-  private gravity: GPUBuffer;
 
   private neighborBindGroupLayout: GPUBindGroupLayout;
   private advectionBindGroupLayout: GPUBindGroupLayout;
@@ -56,68 +55,38 @@ class PBF extends PBFConfig {
   private boundaryModel: BoundaryModel;
   private neighborSearch: NeighborSearch;
 
-  private pause: boolean;
-  private gravityArray: Float32Array;
-
   private static debug = false;
   private tempBuffer: GPUBuffer;
   private debugBuffer1: GPUBuffer;
   private debugBuffer2: GPUBuffer;
 
   constructor() {
+    super();
+  }
 
-    super(34 * 34 * 34);
-    this.pause = true;
+  public computeParticleDensity(particleIndex: number) {
+
+    let density = 0;
+    let pos = [
+      this.particlePositionArray[4*particleIndex], 
+      this.particlePositionArray[4*particleIndex + 1], 
+      this.particlePositionArray[4*particleIndex + 2]
+    ];
+    for (let i = 0; i < this.particleCount; i++) {
+      let npos = [
+        this.particlePositionArray[4 * i] - pos[0], 
+        this.particlePositionArray[4 * i + 1] - pos[1], 
+        this.particlePositionArray[4 * i + 2] - pos[2]
+      ];
+      let len = Math.sqrt(npos[0]*npos[0] + npos[1]*npos[1] + npos[2]*npos[2]);
+      density += kernalPoly6(len);
+    }
+    density *= this.particleWeight;
+    return density;
 
   }
 
   private createStorageData() {
-
-    const particlePerDim = 34;
-    const range = 0.5;
-    const particleDiam = range / particlePerDim;
-    this.particleRadius = 0.5 * particleDiam;
-    if (this.restDensity) {
-      this.particleVolume = 0.98 * particleDiam * particleDiam * particleDiam;
-      this.particleWeight = this.particleVolume * this.restDensity;
-    }
-    // console.log(this.particleWeight, this.restDensity);
-
-    // set initial particle position
-    let positionArray = new Float32Array(4 * this.particleCount);
-    let position = new THREE.Vector3();
-    let offset = new THREE.Vector3(0.15, 0.35, 0.15);
-    for (let i = 0; i < particlePerDim; i++) {
-      for (let j = 0; j < particlePerDim; j++) {
-        for (let k = 0; k < particlePerDim; k++) {
-          position.set(i, j, k).multiplyScalar(particleDiam).add(offset);
-          positionArray.set(
-            position.toArray(),
-            (i * particlePerDim * particlePerDim + j * particlePerDim + k) * 4
-          );
-        }
-      }
-    }
-    device.queue.writeBuffer(
-      this.particlePositionBuffer, 0,
-      positionArray, 0,
-      4 * this.particleCount
-    );
-
-    // let density = 0;
-    // let k = (10 * particlePerDim * particlePerDim + 10 * particlePerDim + 10);
-    // let pos = [positionArray[4*k], positionArray[4*k+1], positionArray[4*k+2]];
-    // for (let i = 0; i < this.particleCount; i++) {
-    //   let npos = [
-    //     positionArray[4*i] - pos[0], 
-    //     positionArray[4*i+1] - pos[1], 
-    //     positionArray[4*i+2] - pos[2]
-    //   ];
-    //   let len = Math.sqrt(npos[0]*npos[0] + npos[1]*npos[1] + npos[2]*npos[2]);
-    //   density += kernalPoly6(len);
-    // }
-    // density *= this.particleWeight;
-    // console.log(density, this.restDensity);
 
     // create GPU Buffers
     // neighbor list buffer
@@ -149,18 +118,6 @@ class PBF extends PBFConfig {
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
     };
     this.lambda = device.createBuffer(attributeBufferDesp);
-
-    // gravity buffer
-    this.gravity = device.createBuffer({
-      size: 4 * Float32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-    });
-    this.gravityArray = new Float32Array(4);
-    this.gravityArray.set([0, -9.8, 0, 0]);
-    device.queue.writeBuffer(
-      this.gravity, 0,
-      this.gravityArray, 0
-    );
 
     if (PBF.debug) {
       this.tempBuffer = device.createBuffer({
@@ -215,7 +172,7 @@ class PBF extends PBFConfig {
         { binding: 0, resource: { buffer: this.particlePositionBuffer } },
         { binding: 1, resource: { buffer: this.positionPredict } },
         { binding: 2, resource: { buffer: this.velocity } },
-        { binding: 3, resource: { buffer: this.gravity } },
+        { binding: 3, resource: { buffer: this.gravityBuffer } },
       ]
     });
 
@@ -290,34 +247,6 @@ class PBF extends PBFConfig {
 
     let poly6 = kernalPoly6(this.scorrCoefDq * PBF.KERNEL_RADIUS);
     return -this.scorrCoefK / Math.pow(poly6, this.scorrCoefN);
-
-  }
-
-  public enableInteraction() {
-
-    document.addEventListener('keydown', event => {
-      if (event.key.toUpperCase() === 'W') {
-        this.gravityArray.set([-9.8, 0, 0, 0]);
-      }
-      else if (event.key.toUpperCase() === 'A') {
-        this.gravityArray.set([0, 0, 9.8, 0]);
-      }
-      else if (event.key.toUpperCase() === 'S') {
-        this.gravityArray.set([9.8, 0, 0, 0]);
-      }
-      else if (event.key.toUpperCase() === 'D') {
-        this.gravityArray.set([0, 0, -9.8, 0]);
-      }
-      else if (event.key.toUpperCase() === 'Q') {
-        this.gravityArray.set([0, 9.8, 0, 0]);
-      }
-      else if (event.key.toUpperCase() === 'E') {
-        this.gravityArray.set([0, -9.8, 0, 0]);
-      }
-      else if (event.key.toUpperCase() === ' ') {
-        this.pause = !this.pause;
-      }
-    });
 
   }
 
@@ -474,12 +403,7 @@ class PBF extends PBFConfig {
   
   }
 
-  public update() {
-    device.queue.writeBuffer(
-      this.gravity as GPUBuffer, 0,
-      this.gravityArray, 0
-    );
-  }
+  public update() { }
 
   public async debug() {
 
