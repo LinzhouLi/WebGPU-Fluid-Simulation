@@ -205,6 +205,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   }
 
   let constrain = max(0.0, density - 1.0);
+  // let constrain = max(-0.001, density - 1.0);
   let sum_grad_Ci_2 = dot(grad_Pi_Ci, grad_Pi_Ci) + sum_grad_Pj_Ci_2;
   lambda[particleIndex] = -constrain / (sum_grad_Ci_2 + LambdaEPS);
   return;
@@ -219,7 +220,7 @@ const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
 const MaxNeighborCount: u32 = ${PBFConfig.MAX_NEIGHBOR_COUNT};
 override ParticleCount: u32;
 override ParticleVolume: f32;
-// override ScorrCoef: f32;
+override ScorrCoef: f32;
 ${KernalPoly6}
 ${KernalSpikyGrad}
 
@@ -257,9 +258,9 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
     positionDeltaLength = length(positionDelta);
     neighborLambda = lambda[nParticleIndex];
 
-    // scorr = kernalPoly6(positionDeltaLength); // suppose scorr_n == 4
-    // scorr *= scorr;
-    // scorr *= ScorrCoef * scorr;
+    scorr = kernalPoly6(positionDeltaLength); // suppose scorr_n == 4
+    scorr *= scorr;
+    scorr *= ScorrCoef * scorr;
     positionUpdate += (selfLambda + neighborLambda) * // + scorr) *
       kernalSpikyGrad(positionDelta, positionDeltaLength);
 

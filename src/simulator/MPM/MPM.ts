@@ -36,8 +36,6 @@ class MPM extends LagrangianSimulator {
     },
   };
 
-  private pause: boolean;
-
   private timeStep: number;
   private gridCount: number;
   private gridLength: number;
@@ -49,8 +47,6 @@ class MPM extends LagrangianSimulator {
     particleMass: number;
     E: number;
   };
-
-  private gravityArray: Float32Array;
 
   private resource: Record<string, GPUBuffer | GPUTexture | GPUSampler>;
 
@@ -79,9 +75,6 @@ class MPM extends LagrangianSimulator {
       particleMass: rho * vol,
       E: 400
     };
-
-    this.gravityArray = new Float32Array(4);
-    this.pause = false;
     
   }
 
@@ -92,11 +85,10 @@ class MPM extends LagrangianSimulator {
   public async initResource() {
 
     this.resource = await resourceFactory.createResource(
-      [ 'particle', 'grid', 'gravity' ],
+      [ 'particle', 'grid' ],
       {
         particle: { size: 4 * 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT },
         grid: { size: 4 * this.gridCount * this.gridCount * this.gridCount * Float32Array.BYTES_PER_ELEMENT },
-        gravity: { size: 4 * Float32Array.BYTES_PER_ELEMENT },
       }
     );
     this.resource.particlePosition = this.particlePositionBuffer;
@@ -124,41 +116,6 @@ class MPM extends LagrangianSimulator {
       this.resource.particle as GPUBuffer, 0,
       particleArray, 0
     );
-
-    // set default gravity
-    this.gravityArray.set([0, -9.8, 0, 0]);
-    device.queue.writeBuffer(
-      this.resource.gravity as GPUBuffer, 0,
-      this.gravityArray, 0
-    );
-
-  }
-
-  public enableInteraction() {
-
-    document.addEventListener('keydown', event => {
-      if (event.key.toUpperCase() === 'W') {
-        this.gravityArray.set([-9.8, 0, 0, 0]);
-      }
-      else if (event.key.toUpperCase() === 'A') {
-        this.gravityArray.set([0, 0, 9.8, 0]);
-      }
-      else if (event.key.toUpperCase() === 'S') {
-        this.gravityArray.set([9.8, 0, 0, 0]);
-      }
-      else if (event.key.toUpperCase() === 'D') {
-        this.gravityArray.set([0, 0, -9.8, 0]);
-      }
-      else if (event.key.toUpperCase() === 'Q') {
-        this.gravityArray.set([0, 9.8, 0, 0]);
-      }
-      else if (event.key.toUpperCase() === 'E') {
-        this.gravityArray.set([0, -9.8, 0, 0]);
-      }
-      else if (event.key.toUpperCase() === ' ') {
-        this.pause = !this.pause;
-      }
-    });
 
   }
 
@@ -271,14 +228,7 @@ class MPM extends LagrangianSimulator {
 
   }
 
-  public update() {
-
-    device.queue.writeBuffer(
-      this.resource.gravity as GPUBuffer, 0,
-      this.gravityArray, 0
-    );
-
-  }
+  public update() { }
 
   public async debug() {
 

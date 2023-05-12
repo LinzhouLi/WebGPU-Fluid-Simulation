@@ -311,7 +311,7 @@ class PBF extends PBFConfig {
         constants: {
           ParticleCount: this.particleCount,
           ParticleVolume: this.particleVolume,
-          // ScorrCoef: this.getScorrCoefficient()
+          ScorrCoef: this.getScorrCoefficient()
         }
       }
     });

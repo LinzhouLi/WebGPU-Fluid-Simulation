@@ -24,6 +24,8 @@ abstract class LagrangianSimulator {
   protected pause: boolean;
   protected particleRadius: number;
   protected particlePositionArray: Array<number>;
+
+  protected gravity: number;
   protected gravityArray: Float32Array;
   protected gravityBuffer: GPUBuffer;
 
@@ -37,12 +39,13 @@ abstract class LagrangianSimulator {
     this.particleRadius = particleRadius;
     this.stepCount = stepCount;
 
+    this.gravity = 9.8;
     this.gravityBuffer = device.createBuffer({
       size: 4 * Float32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
     });
     this.gravityArray = new Float32Array(4);
-    this.gravityArray.set([0, -9.8, 0, 0]);
+    this.gravityArray.set([0, -this.gravity, 0, 0]);
     device.queue.writeBuffer(
       this.gravityBuffer, 0,
       this.gravityArray, 0
@@ -147,27 +150,27 @@ abstract class LagrangianSimulator {
 
     document.addEventListener('keydown', event => {
       if (event.key.toUpperCase() === 'W') {
-        this.gravityArray.set([-9.8, 0, 0, 0]);
+        this.gravityArray.set([-this.gravity, 0, 0, 0]);
         device.queue.writeBuffer( this.gravityBuffer, 0, this.gravityArray, 0 );
       }
       else if (event.key.toUpperCase() === 'A') {
-        this.gravityArray.set([0, 0, 9.8, 0]);
+        this.gravityArray.set([0, 0, this.gravity, 0]);
         device.queue.writeBuffer( this.gravityBuffer, 0, this.gravityArray, 0 );
       }
       else if (event.key.toUpperCase() === 'S') {
-        this.gravityArray.set([9.8, 0, 0, 0]);
+        this.gravityArray.set([this.gravity, 0, 0, 0]);
         device.queue.writeBuffer( this.gravityBuffer, 0, this.gravityArray, 0 );
       }
       else if (event.key.toUpperCase() === 'D') {
-        this.gravityArray.set([0, 0, -9.8, 0]);
+        this.gravityArray.set([0, 0, -this.gravity, 0]);
         device.queue.writeBuffer( this.gravityBuffer, 0, this.gravityArray, 0 );
       }
       else if (event.key.toUpperCase() === 'Q') {
-        this.gravityArray.set([0, 9.8, 0, 0]);
+        this.gravityArray.set([0, this.gravity, 0, 0]);
         device.queue.writeBuffer( this.gravityBuffer, 0, this.gravityArray, 0 );
       }
       else if (event.key.toUpperCase() === 'E') {
-        this.gravityArray.set([0, -9.8, 0, 0]);
+        this.gravityArray.set([0, -this.gravity, 0, 0]);
         device.queue.writeBuffer( this.gravityBuffer, 0, this.gravityArray, 0 );
       }
       else if (event.key.toUpperCase() === ' ') {

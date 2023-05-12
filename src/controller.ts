@@ -192,7 +192,7 @@ class Controller {
     // PBF simulator
     const glb = await loader.loadGLTF("model/bunny.glb", true);
     const bunny_mesh = glb.scene.children[0] as THREE.Mesh;
-    bunny_mesh.scale.set(0.45, 0.45, 0.45);
+    bunny_mesh.scale.set(0.5, 0.43, 0.5);
     bunny_mesh.position.set(0.5, 0.3, 0.5);
 
     this.simulator = new PBF();

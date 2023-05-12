@@ -7,10 +7,10 @@ abstract class PBFConfig extends LagrangianSimulator {
   static BOUNDARY_GRID = [20, 20, 20];
 
   protected constrainIterationCount = 5;
-  protected timeStep = 1 / 200;
+  protected timeStep = 1 / 300;
   protected lambdaEPS = 1e-6;
-  protected scorrCoefK = 1e-6;
-  protected scorrCoefDq = 1e-4; // [0.1, 0.3]
+  protected scorrCoefK = 5e-5;
+  protected scorrCoefDq = 0.1; // [0.1, 0.3]
   protected scorrCoefN = 4; // fixed
   protected XSPHCoef = 0.10;
 
