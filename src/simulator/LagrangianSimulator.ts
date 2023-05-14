@@ -24,17 +24,19 @@ abstract class LagrangianSimulator {
   static MAX_NEIGHBOR_COUNT = 50;
   static KERNEL_RADIUS = 0.025;
 
-  protected pause: boolean;
-  protected particleRadius: number;
-  protected particlePositionArray: Array<number>;
-
-  protected gravity: number;
-  protected gravityArray: Float32Array;
-  protected gravityBuffer: GPUBuffer;
-
+  public pause: boolean;
   public particleCount: number;
   public stepCount: number;
-  public particlePositionBuffer: GPUBuffer;
+  protected particleRadius: number;
+  protected gravity: number;
+
+  protected particlePositionArray: Array<number>;
+  protected gravityArray: Float32Array;
+
+  public position: GPUBuffer;
+  protected velocity: GPUBuffer;
+  protected acceleration: GPUBuffer;
+  protected gravityBuffer: GPUBuffer;
 
   constructor(particleRadius: number = 0.008, stepCount: number = 25) {
 
@@ -54,36 +56,38 @@ abstract class LagrangianSimulator {
       this.gravityArray, 0
     );
 
-    this.clearPositionBuffer();
+    this.clearParticles();
 
   }
 
   public stop() { this.pause = true; }
-  public start() { this.pause = this.particlePositionBuffer ? false : true; }
+  public start() { this.pause = this.position ? false : true; }
 
-  public clearPositionBuffer() {
+  public clearParticles() {
 
     this.particlePositionArray = [];
     this.particleCount = 0;
-    this.particlePositionBuffer = null;
+    this.position = null;
 
   }
 
-  public initPositionBuffer() {
+  public createBasicStorageData() {
     
     if (this.particlePositionArray.length != this.particleCount * 4) {
       throw new Error('Illegal length of Particle Position Buffer!');
     }
 
-    const bufferArray = new Float32Array(this.particlePositionArray);
-    this.particlePositionBuffer = device.createBuffer({
+    const attributeBufferDesp = {
       size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-    });
-    device.queue.writeBuffer(
-      this.particlePositionBuffer, 0,
-      bufferArray, 0
-    );
+    } as GPUBufferDescriptor;
+
+    this.position = device.createBuffer(attributeBufferDesp);
+    this.velocity = device.createBuffer(attributeBufferDesp);
+    this.acceleration = device.createBuffer(attributeBufferDesp);
+
+    const bufferArray = new Float32Array(this.particlePositionArray);
+    device.queue.writeBuffer( this.position, 0, bufferArray, 0 );
 
   }
 
@@ -177,7 +181,7 @@ abstract class LagrangianSimulator {
         device.queue.writeBuffer( this.gravityBuffer, 0, this.gravityArray, 0 );
       }
       else if (event.key.toUpperCase() === ' ') {
-        this.pause = !this.pause || !this.particlePositionBuffer;
+        this.pause = !this.pause || !this.position;
       }
     });
 

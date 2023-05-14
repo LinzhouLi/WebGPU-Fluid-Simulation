@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import { device } from '../../controller';
 import { PBFConfig } from './PBFConfig';
 import { NeighborSearch } from '../neighbor/neighborSearch';
@@ -7,7 +6,6 @@ import {
   ConstrainSolveShader,   ConstrainApplyShader,
   AttributeUpdateShader,  XSPHShader, BoundaryVolumeShader
 } from './PBFShader';
-import { ExclusiveScan } from '../neighbor/exclusiveScan';
 import { BoundaryModel } from '../boundary/volumeMap';
 
 
@@ -24,12 +22,11 @@ function kernalPoly6(r_len: number) {
 
 class PBF extends PBFConfig {
 
-  private positionPredict: GPUBuffer;
+  private position2: GPUBuffer;
+  private velocity2: GPUBuffer;
   private deltaPosition: GPUBuffer;
   private boundaryData: GPUBuffer;
   private lambda: GPUBuffer;
-  private velocity: GPUBuffer;
-  private velocityCopy: GPUBuffer;
 
   private neighborBindGroupLayout: GPUBindGroupLayout;
   private advectionBindGroupLayout: GPUBindGroupLayout;
@@ -90,11 +87,10 @@ class PBF extends PBFConfig {
       size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.STORAGE
     } as GPUBufferDescriptor;
-    this.positionPredict = device.createBuffer(attributeBufferDesp);
+    this.position2 = device.createBuffer(attributeBufferDesp);
+    this.velocity2 = device.createBuffer(attributeBufferDesp);
     this.deltaPosition = device.createBuffer(attributeBufferDesp);
     this.boundaryData = device.createBuffer(attributeBufferDesp);
-    this.velocity = device.createBuffer(attributeBufferDesp);
-    this.velocityCopy = device.createBuffer(attributeBufferDesp);
 
     // f32 particle attribute buffer
     attributeBufferDesp = {
@@ -151,8 +147,8 @@ class PBF extends PBFConfig {
     this.advectionBindGroup = device.createBindGroup({
       layout: this.advectionBindGroupLayout,
       entries: [
-        { binding: 0, resource: { buffer: this.particlePositionBuffer } },
-        { binding: 1, resource: { buffer: this.positionPredict } },
+        { binding: 0, resource: { buffer: this.position } },
+        { binding: 1, resource: { buffer: this.position2 } },
         { binding: 2, resource: { buffer: this.velocity } },
         { binding: 3, resource: { buffer: this.gravityBuffer } },
       ]
@@ -172,7 +168,7 @@ class PBF extends PBFConfig {
     this.constrainBindGroup = device.createBindGroup({
       layout: this.constrainBindGroupLayout,
       entries: [
-        { binding: 0, resource: { buffer: this.positionPredict } },
+        { binding: 0, resource: { buffer: this.position2 } },
         { binding: 1, resource: { buffer: this.deltaPosition } },
         { binding: 2, resource: { buffer: this.lambda } },
         { binding: 3, resource: { buffer: this.boundaryData } },
@@ -193,10 +189,10 @@ class PBF extends PBFConfig {
     this.viscosityBindGroup = device.createBindGroup({
       layout: this.viscosityBindGroupLayout,
       entries: [
-        { binding: 0, resource: { buffer: this.particlePositionBuffer } },
-        { binding: 1, resource: { buffer: this.positionPredict } },
+        { binding: 0, resource: { buffer: this.position } },
+        { binding: 1, resource: { buffer: this.position2 } },
         { binding: 2, resource: { buffer: this.velocity } },
-        { binding: 3, resource: { buffer: this.velocityCopy } }
+        { binding: 3, resource: { buffer: this.velocity2 } }
       ]
     });
 
@@ -204,6 +200,7 @@ class PBF extends PBFConfig {
 
   public async initResource() {
 
+    this.createBasicStorageData();
     this.createStorageData();
 
     // boundary model
@@ -212,7 +209,7 @@ class PBF extends PBFConfig {
 
     // neighbor search
     this.neighborSearch = new NeighborSearch( this );
-    await this.neighborSearch.initResource( this.positionPredict );
+    await this.neighborSearch.initResource( this.position2 );
 
     this.createBindGroup();
 
@@ -354,8 +351,8 @@ class PBF extends PBFConfig {
     passEncoder.setBindGroup(0, this.neighborBindGroup);
     passEncoder.setBindGroup(1, this.constrainBindGroup);
     for (let i = 0; i < this.constrainIterationCount; i++) {
-      // passEncoder.setPipeline(this.boundaryVolumePipeline);
-      // passEncoder.dispatchWorkgroups(workgroupCount);
+      passEncoder.setPipeline(this.boundaryVolumePipeline);
+      passEncoder.dispatchWorkgroups(workgroupCount);
 
       passEncoder.setPipeline(this.lambdaCalculationPipeline);
       passEncoder.dispatchWorkgroups(workgroupCount);

@@ -6,7 +6,6 @@ import { FilteredParticleFluid } from './renderer/filteredParticleFluid/fluid'
 import { Skybox } from './renderer/skybox/skybox';
 import { Mesh } from './renderer/mesh/mesh';
 import { LagrangianSimulator } from './simulator/LagrangianSimulator';
-// import { MPM } from './simulator/MPM/MPM';
 import { PBF } from './simulator/PBF/PBF';
 import { loader } from './common/loader';
 
@@ -201,15 +200,10 @@ class Controller {
       new THREE.Vector3(0.15, 0.35, 0.15),
       new THREE.Vector3(0.65, 0.85, 0.65)
     );
-    this.simulator.initPositionBuffer();
     await this.simulator.initResource();
     await this.simulator.initComputePipeline();
     this.simulator.enableInteraction();
     console.log(this.simulator.particleCount);
-
-    // particles
-    // this.particles = new ParticleFluid(this.simulator);
-    // await this.particles.initResource(this.globalResource.resource);
 
     // fluid renderer
     this.fluidRender = new FilteredParticleFluid(this.simulator, this.camera);

@@ -78,7 +78,7 @@ class ParticleFluid {
     };
     
     this.resource = await resourceFactory.createResource(['sphereMaterial'], this.resourceCPUData);
-    this.resource.particlePosition = this.simulator.particlePositionBuffer;
+    this.resource.particlePosition = this.simulator.position;
     
   }
 
@@ -119,7 +119,7 @@ class ParticleFluid {
       }, { // instance positions
         binding: 2,
         resource: { 
-          buffer: this.simulator.particlePositionBuffer,
+          buffer: this.simulator.position,
           size: 4 * this.simulator.particleCount * Float32Array.BYTES_PER_ELEMENT
         }
       }, { // light

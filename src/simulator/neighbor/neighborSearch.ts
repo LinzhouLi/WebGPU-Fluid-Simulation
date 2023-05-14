@@ -67,42 +67,33 @@ class NeighborSearch {
 
     // create GPU Buffers
     // neighbor list buffer
-    this.neighborList = device.createBuffer({
-      size: LagrangianSimulator.MAX_NEIGHBOR_COUNT * this.particleCount * Uint32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE
-    });
-    let attributeBufferDesp = {
-      size: 
-        Math.ceil((this.particleCount + 1) / ExclusiveScan.ARRAY_ALIGNMENT) * 
-        ExclusiveScan.ARRAY_ALIGNMENT * Float32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE
-    } as GPUBufferDescriptor;
-    this.neighborCount = device.createBuffer(attributeBufferDesp);
-    this.neighborOffset = device.createBuffer(attributeBufferDesp);
+    let bufferSize = LagrangianSimulator.MAX_NEIGHBOR_COUNT * this.particleCount * Uint32Array.BYTES_PER_ELEMENT
+    this.neighborList = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE });
 
-    // grid cell buffer x2
-    this.cellParticleCount = device.createBuffer({
-      size: this.gridCellCountAlignment * Uint32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST // for clearBuffer()
-    });
-    this.cellOffset = device.createBuffer({
-      size: this.gridCellCountAlignment * Uint32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE
-    });
+    // neighbor count/offset buffer
+    bufferSize = 
+      Math.ceil((this.particleCount + 1) / ExclusiveScan.ARRAY_ALIGNMENT) * 
+      ExclusiveScan.ARRAY_ALIGNMENT * Float32Array.BYTES_PER_ELEMENT;
+    this.neighborCount = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+    this.neighborOffset = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE });
+    device.queue.writeBuffer(
+      this.neighborCount, (this.particleCount + 1) * Float32Array.BYTES_PER_ELEMENT,
+      new Uint32Array([0]), 0
+    )
 
-    // particle buffer x1
-    const particleBufferDesp = {
-      size: this.particleCount * Uint32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE
-    } as GPUBufferDescriptor;
-    this.particleSortIndex = device.createBuffer(particleBufferDesp);
-    this.particleSortIndexCopy = device.createBuffer(particleBufferDesp);
+    // grid cell count/offset buffer
+    bufferSize = this.gridCellCountAlignment * Uint32Array.BYTES_PER_ELEMENT;
+    this.cellParticleCount = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+    this.cellOffset = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE });
+
+    // particle index buffer
+    bufferSize = this.particleCount * Uint32Array.BYTES_PER_ELEMENT;
+    this.particleSortIndex = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE });
+    this.particleSortIndexCopy = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE });
 
     // grid info buffer
-    this.gridInfo = device.createBuffer({
-      size: 2 * 4 * Uint32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-    });
+    bufferSize = 2 * 4 * Uint32Array.BYTES_PER_ELEMENT;
+    this.gridInfo = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
     const gridInfoArray = new Uint32Array(8);
     gridInfoArray.set([
       this.gridDimension, this.gridDimension, this.gridDimension, 0,

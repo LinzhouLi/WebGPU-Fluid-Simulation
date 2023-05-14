@@ -91,7 +91,7 @@ class MPM extends LagrangianSimulator {
         grid: { size: 4 * this.gridCount * this.gridCount * this.gridCount * Float32Array.BYTES_PER_ELEMENT },
       }
     );
-    this.resource.particlePosition = this.particlePositionBuffer;
+    this.resource.particlePosition = this.position;
     
     // set initial particle position
     let particleArray = new Float32Array(16 * this.particleCount);
@@ -103,7 +103,7 @@ class MPM extends LagrangianSimulator {
       );
     }
     device.queue.writeBuffer(
-      this.particlePositionBuffer, 0,
+      this.position, 0,
       particleArray, 0,
       4 * this.particleCount
     );

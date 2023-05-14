@@ -62,7 +62,7 @@ override DeltaT: f32;
 ${Boundary}
 
 @group(0) @binding(0) var<storage, read_write> position: array<vec3<f32>>;
-@group(0) @binding(1) var<storage, read_write> positionPredict: array<vec3<f32>>;
+@group(0) @binding(1) var<storage, read_write> position2: array<vec3<f32>>;
 @group(0) @binding(2) var<storage, read_write> velocity: array<vec3<f32>>;
 @group(0) @binding(3) var<uniform> gravity: vec3<f32>;
 
@@ -72,7 +72,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   if (particleIndex >= ParticleCount) { return; }
   let vel = velocity[particleIndex] + DeltaT * gravity;
   let pos = boundary_rand(position[particleIndex] + DeltaT * vel);
-  positionPredict[particleIndex] = pos;
+  position2[particleIndex] = pos;
   return;
 }
 `;
@@ -92,7 +92,7 @@ ${DiscreteField}
 ${ShapeFunction}
 ${Interpolation}
 
-@group(1) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
+@group(1) @binding(0) var<storage, read_write> position2: array<vec3<f32>>;
 @group(1) @binding(3) var<storage, read_write> boundaryData: array<vec4<f32>>;
 @group(1) @binding(4) var<storage, read_write> field: DiscreteField;
 
@@ -101,7 +101,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
 
-  let x = positionPredict[particleIndex];
+  let x = position2[particleIndex];
   var N: array<vec4<f32>, 8>;
   var dN: array<mat4x3<f32>, 8>;
   var bData = vec4<f32>();
@@ -150,7 +150,7 @@ ${KernalSpikyGrad}
 @group(0) @binding(0) var<storage, read_write> neighborOffset: array<u32>;
 @group(0) @binding(1) var<storage, read_write> neighborList: array<u32>;
 
-@group(1) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
+@group(1) @binding(0) var<storage, read_write> position2: array<vec3<f32>>;
 @group(1) @binding(2) var<storage, read_write> lambda: array<f32>;
 @group(1) @binding(3) var<storage, read_write> boundaryData: array<vec4<f32>>;
 
@@ -159,7 +159,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
 
-  let selfPosition = positionPredict[particleIndex];
+  let selfPosition = position2[particleIndex];
   var nListIndex = neighborOffset[particleIndex];
   let nListIndexEnd = neighborOffset[particleIndex + 1];
   var nParticleIndex = u32();
@@ -175,7 +175,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   while(nListIndex < nListIndexEnd) {
     nParticleIndex = neighborList[nListIndex];
 
-    positionDelta = selfPosition - positionPredict[nParticleIndex];
+    positionDelta = selfPosition - position2[nParticleIndex];
     positionDeltaLength = length(positionDelta);
 
     grad_Pk = kernalSpikyGrad(positionDelta, positionDeltaLength);
@@ -226,7 +226,7 @@ ${KernalSpikyGrad}
 @group(0) @binding(0) var<storage, read_write> neighborOffset: array<u32>;
 @group(0) @binding(1) var<storage, read_write> neighborList: array<u32>;
 
-@group(1) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
+@group(1) @binding(0) var<storage, read_write> position2: array<vec3<f32>>;
 @group(1) @binding(1) var<storage, read_write> deltaPosition: array<vec3<f32>>;
 @group(1) @binding(2) var<storage, read_write> lambda: array<f32>;
 @group(1) @binding(3) var<storage, read_write> boundaryData: array<vec4<f32>>;
@@ -236,7 +236,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
 
-  let selfPosition = positionPredict[particleIndex];
+  let selfPosition = position2[particleIndex];
   let selfLambda = lambda[particleIndex];
   var nListIndex = neighborOffset[particleIndex];
   let nListIndexEnd = neighborOffset[particleIndex + 1];
@@ -252,7 +252,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   while(nListIndex < nListIndexEnd) {
     nParticleIndex = neighborList[nListIndex];
 
-    positionDelta = selfPosition - positionPredict[nParticleIndex];
+    positionDelta = selfPosition - position2[nParticleIndex];
     positionDeltaLength = length(positionDelta);
     neighborLambda = lambda[nParticleIndex];
 
@@ -288,15 +288,15 @@ const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
 override ParticleCount: u32;
 ${Boundary}
 
-@group(1) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
+@group(1) @binding(0) var<storage, read_write> position2: array<vec3<f32>>;
 @group(1) @binding(1) var<storage, read_write> deltaPosition: array<vec3<f32>>;
 
 @compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
-  let pos = boundary_rand(positionPredict[particleIndex] + deltaPosition[particleIndex]);
-  positionPredict[particleIndex] = pos;
+  let pos = boundary_rand(position2[particleIndex] + deltaPosition[particleIndex]);
+  position2[particleIndex] = pos;
   return;
 }
 `;
@@ -308,17 +308,17 @@ override ParticleCount: u32;
 override InvDeltaT: f32;
 
 @group(1) @binding(0) var<storage, read_write> position: array<vec3<f32>>;
-@group(1) @binding(1) var<storage, read_write> positionPredict: array<vec3<f32>>;
-@group(1) @binding(3) var<storage, read_write> velocityCopy: array<vec3<f32>>;
+@group(1) @binding(1) var<storage, read_write> position2: array<vec3<f32>>;
+@group(1) @binding(3) var<storage, read_write> velocity2: array<vec3<f32>>;
 
 @compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
   if (particleIndex >= ParticleCount) { return; }
   let pos = position[particleIndex];
-  let posPred = positionPredict[particleIndex];
+  let posPred = position2[particleIndex];
   let vel = (posPred - pos) * InvDeltaT;
-  velocityCopy[particleIndex] = vel;
+  velocity2[particleIndex] = vel;
   position[particleIndex] = posPred;
   return;
 }
@@ -339,7 +339,7 @@ ${KernalPoly6}
 
 @group(1) @binding(0) var<storage, read_write> position: array<vec3<f32>>;
 @group(1) @binding(2) var<storage, read_write> velocity: array<vec3<f32>>;
-@group(1) @binding(3) var<storage, read_write> velocityCopy: array<vec3<f32>>;
+@group(1) @binding(3) var<storage, read_write> velocity2: array<vec3<f32>>;
 
 @compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
@@ -347,7 +347,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   if (particleIndex >= ParticleCount) { return; }
 
   let selfPosition = position[particleIndex];
-  let selfVelocity = velocityCopy[particleIndex];
+  let selfVelocity = velocity2[particleIndex];
   var nListIndex = neighborOffset[particleIndex];
   let nListIndexEnd = neighborOffset[particleIndex + 1];
   var nParticleIndex = u32();
@@ -363,7 +363,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
     positionDelta = selfPosition - position[nParticleIndex];
     positionDeltaLength = length(positionDelta);
 
-    velocityDelta = velocityCopy[nParticleIndex] - selfVelocity;
+    velocityDelta = velocity2[nParticleIndex] - selfVelocity;
     velocityUpdate += velocityDelta * kernalPoly6(positionDeltaLength);
 
     nListIndex++;
