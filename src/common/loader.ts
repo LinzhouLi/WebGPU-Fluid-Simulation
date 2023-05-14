@@ -11,6 +11,7 @@ class Loader {
   private loaderOBJ: OBJLoader;
   private loaderTexture: THREE.TextureLoader;
   private loaderCubeTexture: THREE.CubeTextureLoader;
+  private loaderFile: THREE.FileLoader;
 
   constructor() {
 
@@ -19,6 +20,7 @@ class Loader {
     this.loaderOBJ = new OBJLoader();
     this.loaderTexture = new THREE.TextureLoader();
     this.loaderCubeTexture = new THREE.CubeTextureLoader();
+    this.loaderFile = new THREE.FileLoader();
 
   }
 
@@ -109,6 +111,22 @@ class Loader {
       this.loaderCubeTexture.load(
         paths,
         texture => resolve(texture),  // onLoad
+        null, // onProgress
+        error => reject(error) // onError
+      )
+    });
+
+  }
+
+  public loadFile(path: string) {
+
+    return new Promise((
+      resolve: (data: string | ArrayBuffer) => void, 
+      reject: (reason: any) => void
+    ) => {
+      this.loaderFile.load(
+        path,
+        data => { resolve(data); }, // onLoad
         null, // onProgress
         error => reject(error) // onError
       )

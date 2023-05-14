@@ -201,7 +201,6 @@ class Controller {
       new THREE.Vector3(0.65, 0.85, 0.65)
     );
     await this.simulator.initResource();
-    await this.simulator.initComputePipeline();
     this.simulator.enableInteraction();
     console.log(this.simulator.particleCount);
 

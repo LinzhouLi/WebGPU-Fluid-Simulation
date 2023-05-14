@@ -1,27 +1,34 @@
-import * as THREE from 'three';
 import { device } from '../../controller';
 import { DebugShader } from './discreteFieldShader'
 
 class BoundaryModel {
 
-  private filePath: string;
-
   public resolution: number[];
-  public field: GPUBuffer;
   public fieldByteLength: number;
 
-  constructor(filePath: string) {
+  public field: GPUBuffer;
 
-    this.filePath = filePath;
+  constructor() { }
+
+  private createStorageData(
+    sdf_data: Float32Array,
+    volumeMap_data: Float32Array
+  ) {
+
+    // discrete field buffer
+    this.fieldByteLength = sdf_data.length * Float32Array.BYTES_PER_ELEMENT;
+    this.field = device.createBuffer({
+      size: 2 * this.fieldByteLength,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE
+    });
+    device.queue.writeBuffer( this.field, 0, sdf_data, 0 );
+    device.queue.writeBuffer( this.field, this.fieldByteLength, volumeMap_data, 0 );
 
   }
 
-  public async initResource() {
+  public async initResource( data: string) {
 
-    const loader = new THREE.FileLoader();
-    const data = await loader.loadAsync(this.filePath) as string;
     const data_split = data.split('\n');
-
     this.resolution = data_split[0].split(' ').map(parseFloat);
 
     const sdf_data = new Float32Array( data_split[2].split(' ').map(parseFloat).slice(0, -1) );
@@ -30,14 +37,8 @@ class BoundaryModel {
     if (sdf_data.length != volumeMap_data.length) {
       throw new Error('Invalid Boundary Model File!');
     }
-    this.fieldByteLength = sdf_data.length * Float32Array.BYTES_PER_ELEMENT;
-    
-    this.field = device.createBuffer({
-      size: 2 * this.fieldByteLength,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE
-    });
-    device.queue.writeBuffer( this.field, 0, sdf_data, 0 );
-    device.queue.writeBuffer( this.field, this.fieldByteLength, volumeMap_data, 0 );
+
+    this.createStorageData(sdf_data, volumeMap_data);
 
   }
 

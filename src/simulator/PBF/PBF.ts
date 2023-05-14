@@ -7,6 +7,7 @@ import {
   AttributeUpdateShader,  XSPHShader, BoundaryVolumeShader
 } from './PBFShader';
 import { BoundaryModel } from '../boundary/volumeMap';
+import { loader } from '../../common/loader';
 
 
 function kernalPoly6(r_len: number) {
@@ -204,14 +205,16 @@ class PBF extends PBFConfig {
     this.createStorageData();
 
     // boundary model
-    this.boundaryModel = new BoundaryModel(this.boundaryFilePath);
-    await this.boundaryModel.initResource();
+    this.boundaryModel = new BoundaryModel();
+    const data = await loader.loadFile(this.boundaryFilePath) as string;
+    await this.boundaryModel.initResource( data );
 
     // neighbor search
     this.neighborSearch = new NeighborSearch( this );
     await this.neighborSearch.initResource( this.position2 );
 
     this.createBindGroup();
+    await this.initComputePipeline();
 
   }
 
