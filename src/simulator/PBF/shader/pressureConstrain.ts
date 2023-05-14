@@ -1,110 +1,6 @@
-import { PBFConfig } from './PBFConfig';
-import { DiscreteField, ShapeFunction, Interpolation } from '../boundary/discreteFieldShader'
+import { PBFConfig } from '../PBFConfig';
+import { Boundary, KernalPoly6, KernalSpikyGrad } from './common';
 
-const KernalPoly6 = /* wgsl */`
-fn kernalPoly6(r_len: f32) -> f32 {
-  const KernelRadius2 = KernelRadius * KernelRadius;
-  const coef = 315.0 / (64.0 * PI * pow(KernelRadius, 9));
-  let t = KernelRadius2 - r_len * r_len;
-  let x = select(
-    0.0,
-    t * t * t,
-    r_len <= KernelRadius
-  );
-  return coef * x;
-}
-`;
-
-const KernalSpikyGrad = /* wgsl */`
-fn kernalSpikyGrad(r: vec3<f32>, r_len: f32) -> vec3<f32> {
-  const coef = -45.0 / (PI * pow(KernelRadius, 6));
-  let t = KernelRadius - r_len;
-  let x = select( 0.0, t * t, r_len <= KernelRadius );
-  let r_norm = select( vec3<f32>(0.0), r / r_len, r_len > EPS ); // handle r_len == 0
-  return coef * x * r_norm; // normalize(r) = r / r_len
-}
-`;
-
-
-const Boundary = /* wgsl */`
-fn boundary(pos: vec3<f32>) -> vec3<f32> {
-  const EPS = 1e-3;
-  const UP = vec3<f32>(1.0 - EPS);
-  const BOTTOM = vec3<f32>(EPS);
-  return max(min(pos, UP), BOTTOM);
-}
-
-fn random(uv: vec2<f32>) -> f32 {
-	return fract(sin(dot(uv, vec2<f32>(12.9898, 78.233))) * 43758.5453);
-}
-
-fn random3(p: vec3<f32>) -> vec3<f32> {
-  const a = vec2<f32>(12.9898, 78.233);
-  let b = vec3<f32>(dot(p.yz, a), dot(p.xz, a), dot(p.xy, a));
-  return fract(sin(b) * 43758.5453);
-}
-
-fn boundary_rand(pos: vec3<f32>) -> vec3<f32> {
-  const EPS = 1e-4;
-  let rand_vec3 = EPS * random3(pos);
-  let bottom_bound = rand_vec3;
-  let up_bound = 1.0 - rand_vec3;
-  return max(min(pos, up_bound), bottom_bound);
-}
-`;
-
-
-/***************** Constrain Solving *****************/
-const BoundaryVolumeShader = /* wgsl */`
-const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
-const GridSize: vec3<f32> = vec3<f32>(${PBFConfig.BOUNDARY_GRID[0]}, ${PBFConfig.BOUNDARY_GRID[1]}, ${PBFConfig.BOUNDARY_GRID[2]});
-const GridSizeU: vec3<u32> = vec3<u32>(GridSize);
-const GridSpaceSize: vec3<f32> = 1.0 / GridSize;
-
-override ParticleCount: u32;
-override ParticleRadius: f32;
-
-${DiscreteField}
-${ShapeFunction}
-${Interpolation}
-
-@group(1) @binding(0) var<storage, read_write> position2: array<vec3<f32>>;
-@group(1) @binding(3) var<storage, read_write> boundaryData: array<vec4<f32>>;
-@group(1) @binding(4) var<storage, read_write> field: DiscreteField;
-
-@compute @workgroup_size(256, 1, 1)
-fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
-  let particleIndex = global_id.x;
-  if (particleIndex >= ParticleCount) { return; }
-
-  let x = position2[particleIndex];
-  var N: array<vec4<f32>, 8>;
-  var dN: array<mat4x3<f32>, 8>;
-  var bData = vec4<f32>();
-
-  getShapeFunction(x, &N, &dN);
-  let normal_dist = interpolateSDF(x, &N, &dN);
-  let dist = normal_dist.w;
-
-  if (dist > 0.0 && dist < KernelRadius && length(normal_dist.xyz) > 1e-9) {
-    let volume = interpolateVolumeMap(x, &N);
-    if (volume > 0.0) {
-      let normal = normalize(normal_dist.xyz);
-      let d = max(                      // boundary point is 0.5 * ParticleRadius below the surface. 
-        dist + 0.5 * ParticleRadius,    // Ensure that the particle is at least one particle diameter away 
-        2.0 * ParticleRadius            // from the boundary X to avoid strong pressure forces.
-      );
-      bData = vec4<f32>(
-        x - d * normal,
-        volume
-      );
-    }
-  }
-  
-  boundaryData[particleIndex] = bData;
-  return;
-}
-`;
 
 const LambdaCalculationShader = /* wgsl */`
 const PI: f32 = ${Math.PI};
@@ -277,7 +173,6 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
 `;
 
 
-/********************* Viscosity *********************/
 const AttributeUpdateShader = /* wgsl */`
 override ParticleCount: u32;
 override InvDeltaT: f32;
@@ -304,8 +199,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
 }
 `;
 
-export { 
-  BoundaryVolumeShader,
+export {
   LambdaCalculationShader,  ConstrainSolveShader,
   ConstrainApplyShader,     AttributeUpdateShader
 };

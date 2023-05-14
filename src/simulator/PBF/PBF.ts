@@ -1,13 +1,19 @@
 import { device } from '../../controller';
 import { PBFConfig } from './PBFConfig';
 import { NeighborSearch } from '../neighbor/neighborSearch';
-import { 
-  ForceApplyShader,       LambdaCalculationShader,
-  ConstrainSolveShader,   ConstrainApplyShader,
-  AttributeUpdateShader,  XSPHShader, BoundaryVolumeShader
-} from './PBFShader';
 import { BoundaryModel } from '../boundary/volumeMap';
 import { loader } from '../../common/loader';
+
+// shaders
+import { TimeIntegrationShader } from './shader/timeIntegration';
+import { VorticityConfinementShader } from './shader/vorticityConfinement';
+import { XSPHShader } from './shader/XSPH';
+import { BoundaryVolumeShader } from './shader/boundaryVolume';
+import { 
+  LambdaCalculationShader,  ConstrainSolveShader,   
+  ConstrainApplyShader,     AttributeUpdateShader
+} from './shader/pressureConstrain';
+
 
 
 function kernalPoly6(r_len: number) {
@@ -24,19 +30,22 @@ function kernalPoly6(r_len: number) {
 class PBF extends PBFConfig {
 
   private position2: GPUBuffer;
-  private velocity2: GPUBuffer;
   private deltaPosition: GPUBuffer;
   private boundaryData: GPUBuffer;
   private lambda: GPUBuffer;
 
+  // reused buffers
+  private density: GPUBuffer;
+
   private neighborBindGroupLayout: GPUBindGroupLayout;
-  private advectionBindGroupLayout: GPUBindGroupLayout;
+  private integrationBindGroupLayout: GPUBindGroupLayout;
   private constrainBindGroupLayout: GPUBindGroupLayout;
-  private viscosityBindGroupLayout: GPUBindGroupLayout;
+  private nonPressureBindGroupLayout: GPUBindGroupLayout;
+
   private neighborBindGroup: GPUBindGroup;
-  private advectionBindGroup: GPUBindGroup;
+  private integrationBindGroup: GPUBindGroup;
   private constrainBindGroup: GPUBindGroup;
-  private viscosityBindGroup: GPUBindGroup;
+  private nonPressureBindGroup: GPUBindGroup;
 
   private forceApplyPipeline: GPUComputePipeline;
   private boundaryVolumePipeline: GPUComputePipeline;
@@ -44,6 +53,7 @@ class PBF extends PBFConfig {
   private constrainSolvePipeline: GPUComputePipeline;
   private constrainApplyPipeline: GPUComputePipeline;
   private attributeUpdatePipeline: GPUComputePipeline;
+  private vortcityConfinementPipeline: GPUComputePipeline;
   private XSPHPipeline: GPUComputePipeline;
 
   private boundaryModel: BoundaryModel;
@@ -89,7 +99,6 @@ class PBF extends PBFConfig {
       usage: GPUBufferUsage.STORAGE
     } as GPUBufferDescriptor;
     this.position2 = device.createBuffer(attributeBufferDesp);
-    this.velocity2 = device.createBuffer(attributeBufferDesp);
     this.deltaPosition = device.createBuffer(attributeBufferDesp);
     this.boundaryData = device.createBuffer(attributeBufferDesp);
 
@@ -99,6 +108,7 @@ class PBF extends PBFConfig {
       usage: GPUBufferUsage.STORAGE
     };
     this.lambda = device.createBuffer(attributeBufferDesp);
+    this.density = this.lambda;
 
     if (PBF.debug) {
       this.tempBuffer = device.createBuffer({
@@ -135,27 +145,29 @@ class PBF extends PBFConfig {
       ]
     });
 
-    // advection
-    this.advectionBindGroupLayout = device.createBindGroupLayout({
+    // time integration
+    this.integrationBindGroupLayout = device.createBindGroupLayout({
       entries: [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
       ]
     });
 
-    this.advectionBindGroup = device.createBindGroup({
-      layout: this.advectionBindGroupLayout,
+    this.integrationBindGroup = device.createBindGroup({
+      layout: this.integrationBindGroupLayout,
       entries: [
         { binding: 0, resource: { buffer: this.position } },
         { binding: 1, resource: { buffer: this.position2 } },
         { binding: 2, resource: { buffer: this.velocity } },
-        { binding: 3, resource: { buffer: this.gravityBuffer } },
+        { binding: 3, resource: { buffer: this.acceleration } },
+        { binding: 4, resource: { buffer: this.gravityBuffer } },
       ]
     });
 
-    // constrain
+    // pressure constrain
     this.constrainBindGroupLayout = device.createBindGroupLayout({
       entries: [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
@@ -177,8 +189,8 @@ class PBF extends PBFConfig {
       ]
     });
 
-    // viscosity
-    this.viscosityBindGroupLayout = device.createBindGroupLayout({
+    // non pressure force
+    this.nonPressureBindGroupLayout = device.createBindGroupLayout({
       entries: [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
@@ -187,13 +199,13 @@ class PBF extends PBFConfig {
       ]
     });
 
-    this.viscosityBindGroup = device.createBindGroup({
-      layout: this.viscosityBindGroupLayout,
+    this.nonPressureBindGroup = device.createBindGroup({
+      layout: this.nonPressureBindGroupLayout,
       entries: [
         { binding: 0, resource: { buffer: this.position } },
-        { binding: 1, resource: { buffer: this.position2 } },
+        { binding: 1, resource: { buffer: this.position2 } }, // angular velocity
         { binding: 2, resource: { buffer: this.velocity } },
-        { binding: 3, resource: { buffer: this.velocity2 } }
+        { binding: 3, resource: { buffer: this.acceleration } }
       ]
     });
 
@@ -227,15 +239,15 @@ class PBF extends PBFConfig {
 
   public async initComputePipeline() {
 
-    // advection
-    const advectionPipelineLayout = device.createPipelineLayout({ 
-      bindGroupLayouts: [this.advectionBindGroupLayout] 
+    // integration
+    const integrationPipelineLayout = device.createPipelineLayout({ 
+      bindGroupLayouts: [this.integrationBindGroupLayout] 
     });
     this.forceApplyPipeline = await device.createComputePipelineAsync({
       label: 'Force Apply Pipeline (PBF)',
-      layout: advectionPipelineLayout,
+      layout: integrationPipelineLayout,
       compute: {
-        module: device.createShaderModule({ code: ForceApplyShader }),
+        module: device.createShaderModule({ code: TimeIntegrationShader }),
         entryPoint: 'main',
         constants: {
           ParticleCount: this.particleCount,
@@ -303,13 +315,13 @@ class PBF extends PBFConfig {
       }
     });
 
-    // viscosity
-    const viscosityPipelineLayout = device.createPipelineLayout({
-      bindGroupLayouts: [this.neighborBindGroupLayout, this.viscosityBindGroupLayout]
+    // non pressure force
+    const nonPressurePipelineLayout = device.createPipelineLayout({
+      bindGroupLayouts: [this.neighborBindGroupLayout, this.nonPressureBindGroupLayout]
     });
     this.attributeUpdatePipeline = await device.createComputePipelineAsync({
       label: 'Attribute Update Pipeline (PBF)',
-      layout: viscosityPipelineLayout,
+      layout: nonPressurePipelineLayout,
       compute: {
         module: device.createShaderModule({ code: AttributeUpdateShader }),
         entryPoint: 'main',
@@ -320,16 +332,31 @@ class PBF extends PBFConfig {
       }
     });
 
+    this.vortcityConfinementPipeline = await device.createComputePipelineAsync({
+      label: 'Vorticity Confinement Pipeline (PBF)',
+      layout: nonPressurePipelineLayout,
+      compute: {
+        module: device.createShaderModule({ code: VorticityConfinementShader }),
+        entryPoint: 'main',
+        constants: {
+          ParticleCount: this.particleCount,
+          ParticleVolume: this.particleVolume
+        }
+      }
+    });
+
     this.XSPHPipeline = await device.createComputePipelineAsync({
       label: 'XSPH Pipeline (PBF)',
-      layout: viscosityPipelineLayout,
+      layout: nonPressurePipelineLayout,
       compute: {
         module: device.createShaderModule({ code: XSPHShader }),
         entryPoint: 'main',
         constants: {
+          InvDeltaT: 1 / this.timeStep,
           ParticleCount: this.particleCount,
           ParticleVolume: this.particleVolume,
-          XSPHCoef: this.XSPHCoef
+          XSPHCoef: this.XSPHCoef,
+          VorticityCoef: this.VorticityCoef
         }
       }
     });
@@ -345,7 +372,7 @@ class PBF extends PBFConfig {
     const passEncoder = commandEncoder.beginComputePass();
     const workgroupCount = Math.ceil(this.particleCount / 256);
 
-    passEncoder.setBindGroup(0, this.advectionBindGroup);
+    passEncoder.setBindGroup(0, this.integrationBindGroup);
     passEncoder.setPipeline(this.forceApplyPipeline);
     passEncoder.dispatchWorkgroups(workgroupCount);
 
@@ -367,8 +394,11 @@ class PBF extends PBFConfig {
       passEncoder.dispatchWorkgroups(workgroupCount);
     }
 
-    passEncoder.setBindGroup(1, this.viscosityBindGroup);
+    passEncoder.setBindGroup(1, this.nonPressureBindGroup);
     passEncoder.setPipeline(this.attributeUpdatePipeline);
+    passEncoder.dispatchWorkgroups(workgroupCount);
+
+    passEncoder.setPipeline(this.vortcityConfinementPipeline);
     passEncoder.dispatchWorkgroups(workgroupCount);
 
     passEncoder.setPipeline(this.XSPHPipeline);

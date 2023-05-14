@@ -11,6 +11,7 @@ abstract class PBFConfig extends LagrangianSimulator {
   protected scorrCoefDq = 0.1; // [0.1, 0.3]
   protected scorrCoefN = 4; // fixed
   protected XSPHCoef = 0.10;
+  protected VorticityCoef = 2e-5;
 
   protected restDensity: number = 1000.0;
   protected particleVolume: number;
