@@ -192,15 +192,15 @@ class Controller {
     // PBF simulator
     const glb = await loader.loadGLTF("model/bunny.glb", true);
     const bunny_mesh = glb.scene.children[0] as THREE.Mesh;
-    bunny_mesh.scale.set(0.5, 0.43, 0.5);
-    bunny_mesh.position.set(0.5, 0.3, 0.5);
+    bunny_mesh.scale.set(0.5, 0.5, 0.5);
+    bunny_mesh.position.set(0.5, 0.2, 0.5);
 
     this.simulator = new PBF();
-    this.simulator.voxelizeMesh(bunny_mesh);
-    // this.simulator.voxelizeCube(
-    //   new THREE.Vector3(0.15, 0.35, 0.15),
-    //   new THREE.Vector3(0.65, 0.85, 0.65)
-    // );
+    // this.simulator.voxelizeMesh(bunny_mesh);
+    this.simulator.voxelizeCube(
+      new THREE.Vector3(0.15, 0.35, 0.15),
+      new THREE.Vector3(0.65, 0.85, 0.65)
+    );
     this.simulator.initPositionBuffer();
     await this.simulator.initResource();
     await this.simulator.initComputePipeline();

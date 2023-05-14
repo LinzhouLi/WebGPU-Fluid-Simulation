@@ -21,6 +21,9 @@ abstract class LagrangianSimulator {
     ResourceFactory.RegisterFormats(LagrangianSimulator.ResourceFormats);
   }
 
+  static MAX_NEIGHBOR_COUNT = 50;
+  static KERNEL_RADIUS = 0.025;
+
   protected pause: boolean;
   protected particleRadius: number;
   protected particlePositionArray: Array<number>;

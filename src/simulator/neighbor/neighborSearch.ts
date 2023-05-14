@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { device } from '../../controller';
+import { LagrangianSimulator } from '../LagrangianSimulator';
 import { PBFConfig } from '../PBF/PBFConfig';
 import { ExclusiveScan } from './exclusiveScan';
 import { ParticleInsertShader, CountingSortShader, NeighborCountShader, NeighborListShader } from './neighborShader';
@@ -14,11 +15,14 @@ class NeighborSearch {
   private gridCellCount: number;
   private gridCellCountAlignment: number;
 
+  // input
   private particlePosition: GPUBuffer;
-  private neighborList: GPUBuffer;
-  private neighborCount: GPUBuffer;
-  private neighborOffset: GPUBuffer;
 
+  // output
+  public neighborOffset: GPUBuffer;
+  public neighborList: GPUBuffer;
+
+  private neighborCount: GPUBuffer;
   private cellParticleCount: GPUBuffer;
   private cellOffset: GPUBuffer;
   private particleSortIndex: GPUBuffer;
@@ -45,19 +49,16 @@ class NeighborSearch {
   private debugBuffer1: GPUBuffer;
   private debugBuffer2: GPUBuffer;
 
-  constructor(
-    particleCount: number,
-    searchRadius: number
-  ) {
+  constructor( simulator: LagrangianSimulator ) {
 
-    this.searchRadius = searchRadius;
-    this.particleCount = particleCount;
+    this.searchRadius = LagrangianSimulator.KERNEL_RADIUS;
+    this.particleCount = simulator.particleCount;
 
     this.gridDimension = Math.ceil(1.0 / this.searchRadius);
     this.gridCellCount = Math.pow(this.gridDimension, 3);
     this.gridCellCountAlignment = Math.ceil(this.gridCellCount / ExclusiveScan.ARRAY_ALIGNMENT) * ExclusiveScan.ARRAY_ALIGNMENT;
 
-    if (searchRadius < NeighborSearch.MIN_SEARCH_RADIUS)
+    if (this.searchRadius < NeighborSearch.MIN_SEARCH_RADIUS)
       throw new Error(`Search Radius should greater than ${NeighborSearch.MIN_SEARCH_RADIUS}!`);
 
   }
@@ -65,14 +66,28 @@ class NeighborSearch {
   private createStorageData() {
 
     // create GPU Buffers
+    // neighbor list buffer
+    this.neighborList = device.createBuffer({
+      size: LagrangianSimulator.MAX_NEIGHBOR_COUNT * this.particleCount * Uint32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.STORAGE
+    });
+    let attributeBufferDesp = {
+      size: 
+        Math.ceil((this.particleCount + 1) / ExclusiveScan.ARRAY_ALIGNMENT) * 
+        ExclusiveScan.ARRAY_ALIGNMENT * Float32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.STORAGE
+    } as GPUBufferDescriptor;
+    this.neighborCount = device.createBuffer(attributeBufferDesp);
+    this.neighborOffset = device.createBuffer(attributeBufferDesp);
+
     // grid cell buffer x2
     this.cellParticleCount = device.createBuffer({
       size: this.gridCellCountAlignment * Uint32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST // for clearBuffer()
     });
     this.cellOffset = device.createBuffer({
       size: this.gridCellCountAlignment * Uint32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+      usage: GPUBufferUsage.STORAGE
     });
 
     // particle buffer x1
@@ -238,23 +253,15 @@ class NeighborSearch {
 
   }
 
-  public async initResource(
-    particlePosition: GPUBuffer,
-    neighborCount: GPUBuffer,
-    neighborOffset: GPUBuffer,
-    neighborList: GPUBuffer
-  ) {
+  public async initResource( particlePosition: GPUBuffer ) {
 
     this.particlePosition = particlePosition;
-    this.neighborCount = neighborCount;
-    this.neighborOffset = neighborOffset;
-    this.neighborList = neighborList;
 
     this.createStorageData();
     this.createBindGroup();
     await this.createPipeline();
 
-    const particleCountAlignment = Math.ceil(this.particleCount / ExclusiveScan.ARRAY_ALIGNMENT) * ExclusiveScan.ARRAY_ALIGNMENT;
+    const particleCountAlignment = Math.ceil((this.particleCount + 1) / ExclusiveScan.ARRAY_ALIGNMENT) * ExclusiveScan.ARRAY_ALIGNMENT;
     this.cellScan = new ExclusiveScan(this.cellParticleCount, this.cellOffset, this.gridCellCountAlignment);
     this.particleScan = new ExclusiveScan(this.neighborCount, this.neighborOffset, particleCountAlignment);
     await this.cellScan.initResource();

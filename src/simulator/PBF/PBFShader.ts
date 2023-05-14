@@ -147,9 +147,8 @@ override LambdaEPS: f32;
 ${KernalPoly6}
 ${KernalSpikyGrad}
 
-@group(0) @binding(0) var<storage, read_write> neighborCount: array<u32>;
-@group(0) @binding(1) var<storage, read_write> neighborOffset: array<u32>;
-@group(0) @binding(2) var<storage, read_write> neighborList: array<u32>;
+@group(0) @binding(0) var<storage, read_write> neighborOffset: array<u32>;
+@group(0) @binding(1) var<storage, read_write> neighborList: array<u32>;
 
 @group(1) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
 @group(1) @binding(2) var<storage, read_write> lambda: array<f32>;
@@ -161,8 +160,8 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   if (particleIndex >= ParticleCount) { return; }
 
   let selfPosition = positionPredict[particleIndex];
-  let nCount = neighborCount[particleIndex];
   var nListIndex = neighborOffset[particleIndex];
+  let nListIndexEnd = neighborOffset[particleIndex + 1];
   var nParticleIndex = u32();
 
   var positionDelta: vec3<f32>;
@@ -173,7 +172,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   var density = f32();
 
   // fluid
-  for (var i: u32 = 0; i < nCount; i++) {
+  while(nListIndex < nListIndexEnd) {
     nParticleIndex = neighborList[nListIndex];
 
     positionDelta = selfPosition - positionPredict[nParticleIndex];
@@ -205,7 +204,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   }
 
   let constrain = max(0.0, density - 1.0);
-  // let constrain = max(-0.001, density - 1.0);
+  // let constrain = max(-0.1, density - 1.0);
   let sum_grad_Ci_2 = dot(grad_Pi_Ci, grad_Pi_Ci) + sum_grad_Pj_Ci_2;
   lambda[particleIndex] = -constrain / (sum_grad_Ci_2 + LambdaEPS);
   return;
@@ -224,9 +223,8 @@ override ScorrCoef: f32;
 ${KernalPoly6}
 ${KernalSpikyGrad}
 
-@group(0) @binding(0) var<storage, read_write> neighborCount: array<u32>;
-@group(0) @binding(1) var<storage, read_write> neighborOffset: array<u32>;
-@group(0) @binding(2) var<storage, read_write> neighborList: array<u32>;
+@group(0) @binding(0) var<storage, read_write> neighborOffset: array<u32>;
+@group(0) @binding(1) var<storage, read_write> neighborList: array<u32>;
 
 @group(1) @binding(0) var<storage, read_write> positionPredict: array<vec3<f32>>;
 @group(1) @binding(1) var<storage, read_write> deltaPosition: array<vec3<f32>>;
@@ -240,8 +238,8 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
 
   let selfPosition = positionPredict[particleIndex];
   let selfLambda = lambda[particleIndex];
-  let nCount = neighborCount[particleIndex];
   var nListIndex = neighborOffset[particleIndex];
+  let nListIndexEnd = neighborOffset[particleIndex + 1];
   var nParticleIndex = u32();
 
   var positionDelta: vec3<f32>;
@@ -251,7 +249,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   var positionUpdate = vec3<f32>();
 
   // fluid
-  for (var i: u32 = 0; i < nCount; i++) {
+  while(nListIndex < nListIndexEnd) {
     nParticleIndex = neighborList[nListIndex];
 
     positionDelta = selfPosition - positionPredict[nParticleIndex];
@@ -336,9 +334,8 @@ override ParticleVolume: f32;
 override XSPHCoef: f32;
 ${KernalPoly6}
 
-@group(0) @binding(0) var<storage, read_write> neighborCount: array<u32>;
-@group(0) @binding(1) var<storage, read_write> neighborOffset: array<u32>;
-@group(0) @binding(2) var<storage, read_write> neighborList: array<u32>;
+@group(0) @binding(0) var<storage, read_write> neighborOffset: array<u32>;
+@group(0) @binding(1) var<storage, read_write> neighborList: array<u32>;
 
 @group(1) @binding(0) var<storage, read_write> position: array<vec3<f32>>;
 @group(1) @binding(2) var<storage, read_write> velocity: array<vec3<f32>>;
@@ -351,8 +348,8 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
 
   let selfPosition = position[particleIndex];
   let selfVelocity = velocityCopy[particleIndex];
-  let nCount = neighborCount[particleIndex];
   var nListIndex = neighborOffset[particleIndex];
+  let nListIndexEnd = neighborOffset[particleIndex + 1];
   var nParticleIndex = u32();
 
   var positionDelta: vec3<f32>;
@@ -360,7 +357,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   var velocityDelta: vec3<f32>;
   var velocityUpdate = vec3<f32>();
 
-  for (var i: u32 = 0; i < nCount; i++) {
+  while(nListIndex < nListIndexEnd) {
     nParticleIndex = neighborList[nListIndex];
 
     positionDelta = selfPosition - position[nParticleIndex];
