@@ -30,11 +30,11 @@ function kernalPoly6(r_len: number) {
 class PBF extends PBFConfig {
 
   private position2: GPUBuffer;
-  private deltaPosition: GPUBuffer;
-  private boundaryData: GPUBuffer;
   private lambda: GPUBuffer;
 
   // reused buffers
+  private deltaPosition: GPUBuffer;
+  private boundaryData: GPUBuffer;
   private density: GPUBuffer;
 
   private neighborBindGroupLayout: GPUBindGroupLayout;
@@ -99,8 +99,6 @@ class PBF extends PBFConfig {
       usage: GPUBufferUsage.STORAGE
     } as GPUBufferDescriptor;
     this.position2 = device.createBuffer(attributeBufferDesp);
-    this.deltaPosition = device.createBuffer(attributeBufferDesp);
-    this.boundaryData = device.createBuffer(attributeBufferDesp);
 
     // f32 particle attribute buffer
     attributeBufferDesp = {
@@ -108,7 +106,6 @@ class PBF extends PBFConfig {
       usage: GPUBufferUsage.STORAGE
     };
     this.lambda = device.createBuffer(attributeBufferDesp);
-    this.density = this.lambda;
 
     if (PBF.debug) {
       this.tempBuffer = device.createBuffer({
@@ -182,9 +179,9 @@ class PBF extends PBFConfig {
       layout: this.constrainBindGroupLayout,
       entries: [
         { binding: 0, resource: { buffer: this.position2 } },
-        { binding: 1, resource: { buffer: this.deltaPosition } },
+        { binding: 1, resource: { buffer: this.velocity } }, // delta position
         { binding: 2, resource: { buffer: this.lambda } },
-        { binding: 3, resource: { buffer: this.boundaryData } },
+        { binding: 3, resource: { buffer: this.acceleration } }, // boundary data
         { binding: 4, resource: { buffer: this.boundaryModel.field } }
       ]
     });
