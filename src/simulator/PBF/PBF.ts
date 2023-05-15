@@ -93,7 +93,7 @@ class PBF extends PBFConfig {
     // vec3/vec4 particle attribute buffer
     let attributeBufferDesp = {
       size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
     } as GPUBufferDescriptor;
     this.position2 = device.createBuffer(attributeBufferDesp);
     this.boundaryData = device.createBuffer(attributeBufferDesp);
@@ -102,7 +102,7 @@ class PBF extends PBFConfig {
     // f32 particle attribute buffer
     attributeBufferDesp = {
       size: this.particleCount * Float32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
     };
     this.lambda = device.createBuffer(attributeBufferDesp);
 
@@ -215,6 +215,8 @@ class PBF extends PBFConfig {
 
     this.createBasicStorageData();
     this.createStorageData();
+
+    // console.log(this.computeParticleDensity(34460))
 
     // boundary model
     this.boundaryModel = new BoundaryModel();
@@ -397,15 +399,15 @@ class PBF extends PBFConfig {
       passEncoder.dispatchWorkgroups(workgroupCount);
     }
 
-    passEncoder.setPipeline(this.boundaryVolumePipeline);
-    passEncoder.dispatchWorkgroups(workgroupCount);
+    // passEncoder.setPipeline(this.boundaryVolumePipeline);
+    // passEncoder.dispatchWorkgroups(workgroupCount);
 
     passEncoder.setBindGroup(1, this.nonPressureBindGroup);
     passEncoder.setPipeline(this.attributeUpdatePipeline);
     passEncoder.dispatchWorkgroups(workgroupCount);
 
-    passEncoder.setPipeline(this.vortcityConfinementPipeline);
-    passEncoder.dispatchWorkgroups(workgroupCount);
+    // passEncoder.setPipeline(this.vortcityConfinementPipeline);
+    // passEncoder.dispatchWorkgroups(workgroupCount);
 
     passEncoder.setPipeline(this.XSPHPipeline);
     passEncoder.dispatchWorkgroups(workgroupCount);
@@ -418,47 +420,59 @@ class PBF extends PBFConfig {
 
   public async debug() {
 
-    await this.boundaryModel.debug();
+    // await this.boundaryModel.debug();
 
     if (PBF.debug) {
       const ce = device.createCommandEncoder();
+
+      this.run(ce);
+
       ce.copyBufferToBuffer(
-        this.lambda, 0,
+        this.acceleration, 0,
         this.debugBuffer1, 0,
-        this.particleCount * Float32Array.BYTES_PER_ELEMENT
+        4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT
       );
-      ce.copyBufferToBuffer(
-        this.tempBuffer, 0,
-        this.debugBuffer2, 0,
-        this.particleCount * Float32Array.BYTES_PER_ELEMENT
-      );
+      // ce.copyBufferToBuffer(
+      //   this.tempBuffer, 0,
+      //   this.debugBuffer2, 0,
+      //   this.particleCount * Float32Array.BYTES_PER_ELEMENT
+      // );
       device.queue.submit([ ce.finish() ]);
+      
+      await device.queue.onSubmittedWorkDone();
 
       await this.debugBuffer1.mapAsync(GPUMapMode.READ);
-      const buffer1 = this.debugBuffer1.getMappedRange(0, this.particleCount * Float32Array.BYTES_PER_ELEMENT);
+      const buffer1 = this.debugBuffer1.getMappedRange(0, 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT);
       const array1 = new Float32Array(buffer1);
 
-      await this.debugBuffer2.mapAsync(GPUMapMode.READ);
-      const buffer2 = this.debugBuffer2.getMappedRange(0, this.particleCount * Float32Array.BYTES_PER_ELEMENT);
-      const array2 = new Float32Array(buffer2);
+      console.log(array1);
+      this.debugBuffer1.unmap();
 
-      let min = array1[0]; let max = array1[0];
-      let min_index = 0; let max_index = 0;
-      array1.forEach((val, i) => {
-        if (val >= max) { max = val; max_index = i; }
-        if (val <= min) { min = val; min_index = i; }
-      });
-      console.log(min_index, min);
-      console.log(max_index, max);
+      // await this.debugBuffer1.mapAsync(GPUMapMode.READ);
+      // const buffer1 = this.debugBuffer1.getMappedRange(0, this.particleCount * Float32Array.BYTES_PER_ELEMENT);
+      // const array1 = new Float32Array(buffer1);
 
-      min = array2[0]; max = array2[0];
-      min_index = 0; max_index = 0;
-      array2.forEach((val, i) => {
-        if (val >= max) { max = val; max_index = i; }
-        if (val <= min) { min = val; min_index = i; }
-      });
-      console.log(min_index, min);
-      console.log(max_index, max);
+      // await this.debugBuffer2.mapAsync(GPUMapMode.READ);
+      // const buffer2 = this.debugBuffer2.getMappedRange(0, this.particleCount * Float32Array.BYTES_PER_ELEMENT);
+      // const array2 = new Float32Array(buffer2);
+
+      // let min = array1[0]; let max = array1[0];
+      // let min_index = 0; let max_index = 0;
+      // array1.forEach((val, i) => {
+      //   if (val >= max) { max = val; max_index = i; }
+      //   if (val <= min) { min = val; min_index = i; }
+      // });
+      // console.log(min_index, min);
+      // console.log(max_index, max);
+
+      // min = array2[0]; max = array2[0];
+      // min_index = 0; max_index = 0;
+      // array2.forEach((val, i) => {
+      //   if (val >= max) { max = val; max_index = i; }
+      //   if (val <= min) { min = val; min_index = i; }
+      // });
+      // console.log(min_index, min);
+      // console.log(max_index, max);
 
       await this.neighborSearch.debug();
     }

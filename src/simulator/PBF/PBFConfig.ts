@@ -11,9 +11,9 @@ abstract class PBFConfig extends LagrangianSimulator {
   protected scorrCoefDq = 0.1; // [0.1, 0.3]
   protected scorrCoefN = 4; // fixed
 
-  protected XSPHCoef = 0.10;
-  protected VorticityCoef = 0.01;
-  protected SurfaceTensionCoef = 0.05;
+  protected XSPHCoef = 0.1;
+  protected VorticityCoef = 0.1;
+  protected SurfaceTensionCoef = 0.1;
 
   protected restDensity: number = 1000.0;
   protected particleVolume: number;
@@ -22,10 +22,11 @@ abstract class PBFConfig extends LagrangianSimulator {
   protected boundaryFilePath = "model/torus.cdm";
 
   constructor() {
-    super(0.006, 1); // particle radius = 0.006, sub step count = 1
+    super(0.007, 1); // particle radius = 0.006, sub step count = 1
     const particleDiam = 2 * this.particleRadius;
     this.particleVolume = 0.9 * particleDiam * particleDiam * particleDiam;
     this.particleWeight = this.particleVolume * this.restDensity;
+    // console.log(this.particleVolume, this.particleWeight)
   }
 
   public abstract initResource(): Promise<void>;

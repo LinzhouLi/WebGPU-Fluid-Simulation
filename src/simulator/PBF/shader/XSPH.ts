@@ -68,12 +68,11 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
 
     // 1 / rho_j * ||omega|| * dW_ij
     etai += angularVelocity[nParticleIndex].w * kernalSpikyGrad(positionDelta, positionDeltaLength) / pos_dens.w;
-    // etai += angularVelocity[nParticleIndex].w * kernalSpikyGrad(positionDelta, positionDeltaLength) / 1000.0;
     
     // a_tension = K_ij * (a_cohesion + a_curvature)
     tension -= Kij * (
       // cohesion     m * normaliz(x_ij) * W(x_ij)
-      ParticleWeight * positionDelta / positionDeltaLength * kernalCohesion(positionDeltaLength) +
+      ParticleWeight * kernalCohesion(positionDelta, positionDeltaLength) +
       // curvature    n_ij
       (selfNormal - normal[nParticleIndex])
     );
@@ -81,17 +80,14 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
     nListIndex++;
   }
 
-  // let t1 = TensionCoef * tension;
-  // let t2 = VorticityCoef * cross(normalize(etai), selfAngularVelocity);
-  // acceleration[particleIndex] = (
-  //   XSPHCoef * InvDeltaT * ParticleWeight * velocityUpdate + 
-  //   VorticityCoef * cross(normalize(etai), selfAngularVelocity)
-  // );
+  let etai_norm = select(vec3<f32>(0.0), normalize(etai), length(etai) > EPS);
+
   acceleration[particleIndex] = (
     XSPHCoef * InvDeltaT * ParticleWeight * velocityUpdate +
-    VorticityCoef * cross(normalize(etai), selfAngularVelocity) +
+    VorticityCoef * cross(etai_norm, selfAngularVelocity) +
     TensionCoef * tension
   );
+
   return;
 }
 `;

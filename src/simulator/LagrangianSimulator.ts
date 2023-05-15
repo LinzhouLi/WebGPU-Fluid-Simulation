@@ -22,13 +22,13 @@ abstract class LagrangianSimulator {
   }
 
   static MAX_NEIGHBOR_COUNT = 60;
-  static KERNEL_RADIUS = 0.024;
+  static KERNEL_RADIUS = 0.025;
 
   public pause: boolean;
   public particleCount: number;
   public stepCount: number;
   protected particleRadius: number;
-  protected gravity: number;
+  protected gravity: number = 0.0;
 
   protected particlePositionArray: Array<number>;
   protected gravityArray: Float32Array;
@@ -44,7 +44,6 @@ abstract class LagrangianSimulator {
     this.particleRadius = particleRadius;
     this.stepCount = stepCount;
 
-    this.gravity = 9.8;
     this.gravityBuffer = device.createBuffer({
       size: 4 * Float32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
@@ -79,7 +78,7 @@ abstract class LagrangianSimulator {
 
     const attributeBufferDesp = {
       size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
     } as GPUBufferDescriptor;
 
     this.position = device.createBuffer(attributeBufferDesp);

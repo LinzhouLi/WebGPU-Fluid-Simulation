@@ -14,7 +14,7 @@ fn kernalPoly6(r_len: f32) -> f32 {
 
 
 const KernalCohesion = /* wgsl */`
-fn kernalCohesion(r_len: f32) -> f32 {
+fn kernalCohesion(r: vec3<f32>, r_len: f32) -> vec3<f32> {
   const halfKernelRadius = 0.5 * KernelRadius;
   const coef = 32.0 / (PI * pow(KernelRadius, 9));
   const bais = -pow(KernelRadius, 6) / 64.0;
@@ -23,7 +23,8 @@ fn kernalCohesion(r_len: f32) -> f32 {
   let t = t3.x * t3.y; // (h - r)^3 * r^3
   var result = select(fma(2.0, t, bais), t, r_len > halfKernelRadius);
   result = select(0.0, result, r_len <= KernelRadius);
-  return result;
+  let r_norm = select( vec3<f32>(0.0), r / r_len, r_len > EPS ); // handle r_len == 0
+  return result * r_norm;
 }
 `;
 

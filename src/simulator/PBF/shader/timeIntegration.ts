@@ -21,7 +21,6 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
 
   // semi implicit euler time integration
   let vel = velocity[particleIndex] + DeltaT * (gravity + acceleration[particleIndex]);
-  // let vel = velocity[particleIndex] + DeltaT * (gravity);
   let pos = boundary_rand(position[particleIndex] + DeltaT * vel);
   position2[particleIndex] = pos;
 

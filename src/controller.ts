@@ -250,6 +250,7 @@ class Controller {
 
   public async debug() {
 
+    this.update();
     await this.simulator.debug();
 
   }
