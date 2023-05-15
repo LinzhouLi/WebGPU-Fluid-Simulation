@@ -21,8 +21,8 @@ abstract class LagrangianSimulator {
     ResourceFactory.RegisterFormats(LagrangianSimulator.ResourceFormats);
   }
 
-  static MAX_NEIGHBOR_COUNT = 50;
-  static KERNEL_RADIUS = 0.025;
+  static MAX_NEIGHBOR_COUNT = 60;
+  static KERNEL_RADIUS = 0.024;
 
   public pause: boolean;
   public particleCount: number;
@@ -38,7 +38,7 @@ abstract class LagrangianSimulator {
   protected acceleration: GPUBuffer;
   protected gravityBuffer: GPUBuffer;
 
-  constructor(particleRadius: number = 0.008, stepCount: number = 25) {
+  constructor(particleRadius: number = 0.006, stepCount: number = 25) {
 
     this.pause = true;
     this.particleRadius = particleRadius;

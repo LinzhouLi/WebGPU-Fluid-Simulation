@@ -6,12 +6,14 @@ const  VorticityConfinementShader = /* wgsl */`
 const PI: f32 = ${Math.PI};
 const EPS: f32 = 1e-6;
 const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
+
 override ParticleCount: u32;
 override ParticleVolume: f32;
+
 ${KernalSpikyGrad}
 
-@group(0) @binding(0) var<storage, read_write> neighborOffset: array<u32>;
-@group(0) @binding(1) var<storage, read_write> neighborList: array<u32>;
+@group(0) @binding(0) var<storage, read> neighborOffset: array<u32>;
+@group(0) @binding(1) var<storage, read> neighborList: array<u32>;
 
 @group(1) @binding(0) var<storage, read_write> position: array<vec3<f32>>;
 @group(1) @binding(1) var<storage, read_write> angularVelocity: array<vec4<f32>>;

@@ -9,11 +9,8 @@ import { TimeIntegrationShader } from './shader/timeIntegration';
 import { VorticityConfinementShader } from './shader/vorticityConfinement';
 import { XSPHShader } from './shader/XSPH';
 import { BoundaryVolumeShader } from './shader/boundaryVolume';
-import { 
-  LambdaCalculationShader,  ConstrainSolveShader,   
-  ConstrainApplyShader,     AttributeUpdateShader
-} from './shader/pressureConstrain';
-
+import { LambdaCalculationShader, ConstrainSolveShader, ConstrainApplyShader } from './shader/pressureConstrain';
+import { AttributeUpdateShader } from './shader/attributeUpdate';
 
 
 function kernalPoly6(r_len: number) {
@@ -31,11 +28,10 @@ class PBF extends PBFConfig {
 
   private position2: GPUBuffer;
   private lambda: GPUBuffer;
+  private boundaryData: GPUBuffer;
 
   // reused buffers
   private deltaPosition: GPUBuffer;
-  private boundaryData: GPUBuffer;
-  private density: GPUBuffer;
 
   private neighborBindGroupLayout: GPUBindGroupLayout;
   private integrationBindGroupLayout: GPUBindGroupLayout;
@@ -99,6 +95,7 @@ class PBF extends PBFConfig {
       usage: GPUBufferUsage.STORAGE
     } as GPUBufferDescriptor;
     this.position2 = device.createBuffer(attributeBufferDesp);
+    this.boundaryData = device.createBuffer(attributeBufferDesp);
 
     // f32 particle attribute buffer
     attributeBufferDesp = {
@@ -129,8 +126,8 @@ class PBF extends PBFConfig {
     // neighbor
     this.neighborBindGroupLayout = device.createBindGroupLayout({
       entries: [
-        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }
       ]
     });
 
@@ -171,7 +168,7 @@ class PBF extends PBFConfig {
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }
       ]
     });
 
@@ -181,7 +178,7 @@ class PBF extends PBFConfig {
         { binding: 0, resource: { buffer: this.position2 } },
         { binding: 1, resource: { buffer: this.velocity } }, // delta position
         { binding: 2, resource: { buffer: this.lambda } },
-        { binding: 3, resource: { buffer: this.acceleration } }, // boundary data
+        { binding: 3, resource: { buffer: this.boundaryData } },
         { binding: 4, resource: { buffer: this.boundaryModel.field } }
       ]
     });
@@ -193,6 +190,7 @@ class PBF extends PBFConfig {
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
       ]
     });
 
@@ -202,7 +200,8 @@ class PBF extends PBFConfig {
         { binding: 0, resource: { buffer: this.position } },
         { binding: 1, resource: { buffer: this.position2 } }, // angular velocity
         { binding: 2, resource: { buffer: this.velocity } },
-        { binding: 3, resource: { buffer: this.acceleration } }
+        { binding: 3, resource: { buffer: this.acceleration } },
+        { binding: 4, resource: { buffer: this.boundaryData } }
       ]
     });
 
@@ -324,6 +323,7 @@ class PBF extends PBFConfig {
         entryPoint: 'main',
         constants: {
           ParticleCount: this.particleCount,
+          ParticleVolume: this.particleVolume,
           InvDeltaT: 1 / this.timeStep
         }
       }
@@ -390,6 +390,9 @@ class PBF extends PBFConfig {
       passEncoder.setPipeline(this.constrainApplyPipeline);
       passEncoder.dispatchWorkgroups(workgroupCount);
     }
+
+    passEncoder.setPipeline(this.boundaryVolumePipeline);
+    passEncoder.dispatchWorkgroups(workgroupCount);
 
     passEncoder.setBindGroup(1, this.nonPressureBindGroup);
     passEncoder.setPipeline(this.attributeUpdatePipeline);

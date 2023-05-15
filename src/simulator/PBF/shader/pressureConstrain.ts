@@ -6,7 +6,6 @@ const LambdaCalculationShader = /* wgsl */`
 const PI: f32 = ${Math.PI};
 const EPS: f32 = 1e-6;
 const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
-const MaxNeighborCount: u32 = ${PBFConfig.MAX_NEIGHBOR_COUNT};
 const GridSize: vec3<f32> = vec3<f32>(${PBFConfig.BOUNDARY_GRID[0]}, ${PBFConfig.BOUNDARY_GRID[1]}, ${PBFConfig.BOUNDARY_GRID[2]});
 const GridSizeU: vec3<u32> = vec3<u32>(GridSize);
 const GridSpaceSize: vec3<f32> = 1.0 / GridSize;
@@ -19,8 +18,8 @@ override LambdaEPS: f32;
 ${KernalPoly6}
 ${KernalSpikyGrad}
 
-@group(0) @binding(0) var<storage, read_write> neighborOffset: array<u32>;
-@group(0) @binding(1) var<storage, read_write> neighborList: array<u32>;
+@group(0) @binding(0) var<storage, read> neighborOffset: array<u32>;
+@group(0) @binding(1) var<storage, read> neighborList: array<u32>;
 
 @group(1) @binding(0) var<storage, read_write> position2: array<vec3<f32>>;
 @group(1) @binding(2) var<storage, read_write> lambda: array<f32>;
@@ -87,15 +86,16 @@ const ConstrainSolveShader = /* wgsl */`
 const PI: f32 = ${Math.PI};
 const EPS: f32 = 1e-6;
 const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
-const MaxNeighborCount: u32 = ${PBFConfig.MAX_NEIGHBOR_COUNT};
+
 override ParticleCount: u32;
 override ParticleVolume: f32;
 override ScorrCoef: f32;
+
 ${KernalPoly6}
 ${KernalSpikyGrad}
 
-@group(0) @binding(0) var<storage, read_write> neighborOffset: array<u32>;
-@group(0) @binding(1) var<storage, read_write> neighborList: array<u32>;
+@group(0) @binding(0) var<storage, read> neighborOffset: array<u32>;
+@group(0) @binding(1) var<storage, read> neighborList: array<u32>;
 
 @group(1) @binding(0) var<storage, read_write> position2: array<vec3<f32>>;
 @group(1) @binding(1) var<storage, read_write> deltaPosition: array<vec3<f32>>;
@@ -173,33 +173,4 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
 `;
 
 
-const AttributeUpdateShader = /* wgsl */`
-override ParticleCount: u32;
-override InvDeltaT: f32;
-
-@group(1) @binding(0) var<storage, read_write> position: array<vec3<f32>>;
-@group(1) @binding(1) var<storage, read_write> position2: array<vec3<f32>>;
-@group(1) @binding(2) var<storage, read_write> velocity: array<vec3<f32>>;
-@group(1) @binding(3) var<storage, read_write> acceleration: array<vec3<f32>>;
-
-@compute @workgroup_size(256, 1, 1)
-fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
-  let particleIndex = global_id.x;
-  if (particleIndex >= ParticleCount) { return; }
-
-  let pos = position[particleIndex];
-  let pos2 = position2[particleIndex];
-  let vel = (pos2 - pos) * InvDeltaT; // first order
-
-  velocity[particleIndex] = vel;
-  position[particleIndex] = pos2;
-  acceleration[particleIndex] = vec3<f32>();
-
-  return;
-}
-`;
-
-export {
-  LambdaCalculationShader,  ConstrainSolveShader,
-  ConstrainApplyShader,     AttributeUpdateShader
-};
+export { LambdaCalculationShader, ConstrainSolveShader, ConstrainApplyShader };

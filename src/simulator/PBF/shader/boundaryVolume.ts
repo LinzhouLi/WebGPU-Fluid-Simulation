@@ -17,7 +17,7 @@ ${Interpolation}
 
 @group(1) @binding(0) var<storage, read_write> position2: array<vec3<f32>>;
 @group(1) @binding(3) var<storage, read_write> boundaryData: array<vec4<f32>>;
-@group(1) @binding(4) var<storage, read_write> field: DiscreteField;
+@group(1) @binding(4) var<storage, read> field: DiscreteField;
 
 @compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
