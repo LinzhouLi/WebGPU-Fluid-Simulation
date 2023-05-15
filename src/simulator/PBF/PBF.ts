@@ -29,6 +29,7 @@ class PBF extends PBFConfig {
   private position2: GPUBuffer;
   private lambda: GPUBuffer;
   private boundaryData: GPUBuffer;
+  private normal: GPUBuffer;
 
   // reused buffers
   private deltaPosition: GPUBuffer;
@@ -96,6 +97,7 @@ class PBF extends PBFConfig {
     } as GPUBufferDescriptor;
     this.position2 = device.createBuffer(attributeBufferDesp);
     this.boundaryData = device.createBuffer(attributeBufferDesp);
+    this.normal = device.createBuffer(attributeBufferDesp);
 
     // f32 particle attribute buffer
     attributeBufferDesp = {
@@ -190,7 +192,8 @@ class PBF extends PBFConfig {
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
       ]
     });
 
@@ -201,7 +204,8 @@ class PBF extends PBFConfig {
         { binding: 1, resource: { buffer: this.position2 } }, // angular velocity
         { binding: 2, resource: { buffer: this.velocity } },
         { binding: 3, resource: { buffer: this.acceleration } },
-        { binding: 4, resource: { buffer: this.boundaryData } }
+        { binding: 4, resource: { buffer: this.normal } },
+        { binding: 5, resource: { buffer: this.boundaryData } }
       ]
     });
 
@@ -323,7 +327,7 @@ class PBF extends PBFConfig {
         entryPoint: 'main',
         constants: {
           ParticleCount: this.particleCount,
-          ParticleVolume: this.particleVolume,
+          ParticleWeight: this.particleWeight,
           InvDeltaT: 1 / this.timeStep
         }
       }
@@ -337,7 +341,7 @@ class PBF extends PBFConfig {
         entryPoint: 'main',
         constants: {
           ParticleCount: this.particleCount,
-          ParticleVolume: this.particleVolume
+          ParticleWeight: this.particleWeight
         }
       }
     });
@@ -350,10 +354,12 @@ class PBF extends PBFConfig {
         entryPoint: 'main',
         constants: {
           InvDeltaT: 1 / this.timeStep,
+          DoubleDensity0: 2 * this.restDensity,
           ParticleCount: this.particleCount,
-          ParticleVolume: this.particleVolume,
+          ParticleWeight: this.particleWeight,
           XSPHCoef: this.XSPHCoef,
-          VorticityCoef: this.VorticityCoef
+          VorticityCoef: this.VorticityCoef,
+          TensionCoef: this.SurfaceTensionCoef
         }
       }
     });

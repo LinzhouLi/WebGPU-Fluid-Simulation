@@ -12,6 +12,22 @@ fn kernalPoly6(r_len: f32) -> f32 {
 }
 `;
 
+
+const KernalCohesion = /* wgsl */`
+fn kernalCohesion(r_len: f32) -> f32 {
+  const halfKernelRadius = 0.5 * KernelRadius;
+  const coef = 32.0 / (PI * pow(KernelRadius, 9));
+  const bais = -pow(KernelRadius, 6) / 64.0;
+  let tv = vec2<f32>(KernelRadius - r_len, r_len);
+  let t3 = tv * tv * tv;
+  let t = t3.x * t3.y; // (h - r)^3 * r^3
+  var result = select(fma(2.0, t, bais), t, r_len > halfKernelRadius);
+  result = select(0.0, result, r_len <= KernelRadius);
+  return result;
+}
+`;
+
+
 const KernalSpikyGrad = /* wgsl */`
 fn kernalSpikyGrad(r: vec3<f32>, r_len: f32) -> vec3<f32> {
   const coef = -45.0 / (PI * pow(KernelRadius, 6));
@@ -50,4 +66,4 @@ fn boundary_rand(pos: vec3<f32>) -> vec3<f32> {
 }
 `;
 
-export { KernalPoly6, KernalSpikyGrad, Boundary };
+export { KernalPoly6, KernalCohesion, KernalSpikyGrad, Boundary };

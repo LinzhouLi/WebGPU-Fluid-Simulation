@@ -8,7 +8,7 @@ const EPS: f32 = 1e-6;
 const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
 
 override ParticleCount: u32;
-override ParticleVolume: f32;
+override ParticleWeight: f32;
 override InvDeltaT: f32;
 
 ${KernalPoly6}
@@ -19,7 +19,7 @@ ${KernalPoly6}
 @group(1) @binding(0) var<storage, read_write> position_density: array<vec4<f32>>;
 @group(1) @binding(1) var<storage, read_write> position2: array<vec3<f32>>;
 @group(1) @binding(2) var<storage, read_write> velocity: array<vec3<f32>>;
-@group(1) @binding(3) var<storage, read_write> acceleration: array<vec3<f32>>;
+// @group(1) @binding(3) var<storage, read_write> acceleration: array<vec3<f32>>;
 
 @compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
@@ -46,14 +46,14 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
 
     nListIndex++;
   }
-  density *= ParticleVolume;
+  density *= ParticleWeight;
 
   let oldPosition = position_density[particleIndex].xyz;
   let vel = (selfPosition - oldPosition) * InvDeltaT; // first order
 
   velocity[particleIndex] = vel;
   position_density[particleIndex] = vec4<f32>(selfPosition, density);
-  acceleration[particleIndex] = vec3<f32>();
+  // acceleration[particleIndex] = vec3<f32>();
 
   return;
 }
