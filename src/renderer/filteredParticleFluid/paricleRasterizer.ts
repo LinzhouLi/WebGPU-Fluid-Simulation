@@ -33,7 +33,7 @@ class ParicleRasterizer {
 
     this.initBindGroup(resource);
     await this.initPipeline()
-    this.initRenderBundle();
+    // this.initRenderBundle();
 
   }
 
@@ -73,10 +73,7 @@ class ParicleRasterizer {
         resource: { buffer: resource.renderingOptions as GPUBuffer }
       }, { // instance positions
         binding: 2,
-        resource: { 
-          buffer: this.simulator.position, 
-          size: 4 * this.simulator.particleCount * Float32Array.BYTES_PER_ELEMENT
-        }
+        resource: { buffer: this.simulator.position }
       }, { // light
         binding: 3,
         resource: { buffer: resource.directionalLight as GPUBuffer }
@@ -143,13 +140,13 @@ class ParicleRasterizer {
   }
 
   private setRenderCommands(
-    bundleEncoder: GPURenderBundleEncoder,
+    encoder: GPURenderBundleEncoder | GPURenderPassEncoder,
     pipeline: GPURenderPipeline
   ) {
 
-    bundleEncoder.setPipeline(pipeline);
-    bundleEncoder.setBindGroup(0, this.bindGroup);
-    bundleEncoder.draw(4, this.simulator.particleCount);
+    encoder.setPipeline(pipeline);
+    encoder.setBindGroup(0, this.bindGroup);
+    encoder.draw(4, this.simulator.particleCount);
 
   }
 
@@ -191,7 +188,7 @@ class ParicleRasterizer {
         depthStoreOp: 'store',
       }
     });
-    renderPassEncoder1.executeBundles([this.depthRenderBundle]);
+    this.setRenderCommands(renderPassEncoder1, this.depthRenderPipeline);
     renderPassEncoder1.end();
 
     const renderPassEncoder2 = commandEncoder.beginRenderPass({
@@ -202,7 +199,7 @@ class ParicleRasterizer {
         storeOp: 'store'
       }]
     });
-    renderPassEncoder2.executeBundles([this.volumeRenderBundle]);
+    this.setRenderCommands(renderPassEncoder2, this.volumeRenderPipeline);
     renderPassEncoder2.end();
 
   }

@@ -1,4 +1,5 @@
 import { device } from '../../controller';
+import { SPH } from '../SPH';
 import { PBFConfig } from './PBFConfig';
 import { NeighborSearch } from '../neighbor/neighborSearch';
 import { BoundaryModel } from '../boundary/volumeMap';
@@ -33,12 +34,15 @@ class PBF extends PBFConfig {
 
   // reused buffers
   private deltaPosition: GPUBuffer;
+  private angularVelocity: GPUBuffer;
 
+  private configBindGroupLayout: GPUBindGroupLayout;
   private neighborBindGroupLayout: GPUBindGroupLayout;
   private integrationBindGroupLayout: GPUBindGroupLayout;
   private constrainBindGroupLayout: GPUBindGroupLayout;
   private nonPressureBindGroupLayout: GPUBindGroupLayout;
 
+  private configBindGroup: GPUBindGroup;
   private neighborBindGroup: GPUBindGroup;
   private integrationBindGroup: GPUBindGroup;
   private constrainBindGroup: GPUBindGroup;
@@ -56,13 +60,31 @@ class PBF extends PBFConfig {
   private boundaryModel: BoundaryModel;
   private neighborSearch: NeighborSearch;
 
-  private static debug = false;
+  private static debug = true;
   private tempBuffer: GPUBuffer;
   private debugBuffer1: GPUBuffer;
   private debugBuffer2: GPUBuffer;
 
   constructor() {
     super();
+  }
+
+  public reset() {
+
+    const ce = device.createCommandEncoder();
+
+    this.baseReset(ce);
+
+    ce.clearBuffer(this.position2);
+    ce.clearBuffer(this.lambda);
+    ce.clearBuffer(this.boundaryData);
+    ce.clearBuffer(this.normal);
+
+    this.neighborSearch.reset(ce);
+    this.boundaryModel.reset(ce);
+
+    device.queue.submit([ ce.finish() ]);
+    
   }
 
   public computeParticleDensity(particleIndex: number) {
@@ -92,52 +114,52 @@ class PBF extends PBFConfig {
     // create GPU Buffers
     // vec3/vec4 particle attribute buffer
     let attributeBufferDesp = {
-      size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
+      size: 4 * SPH.MAX_PARTICAL_NUM * Float32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
     } as GPUBufferDescriptor;
     this.position2 = device.createBuffer(attributeBufferDesp);
     this.boundaryData = device.createBuffer(attributeBufferDesp);
     this.normal = device.createBuffer(attributeBufferDesp);
 
+    this.deltaPosition = this.velocity;
+    this.angularVelocity = this.position2;
+
     // f32 particle attribute buffer
     attributeBufferDesp = {
-      size: this.particleCount * Float32Array.BYTES_PER_ELEMENT,
+      size: SPH.MAX_PARTICAL_NUM * Float32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
     };
     this.lambda = device.createBuffer(attributeBufferDesp);
 
     if (PBF.debug) {
       this.tempBuffer = device.createBuffer({
-        size: this.particleCount * Float32Array.BYTES_PER_ELEMENT,
+        size: SPH.MAX_PARTICAL_NUM * Float32Array.BYTES_PER_ELEMENT,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
       });
       this.debugBuffer1 = device.createBuffer({
-        size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
+        size: 4 * SPH.MAX_PARTICAL_NUM * Float32Array.BYTES_PER_ELEMENT,
         usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
       });
       this.debugBuffer2 = device.createBuffer({
-        size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
+        size: 4 * SPH.MAX_PARTICAL_NUM * Float32Array.BYTES_PER_ELEMENT,
         usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
       });
     }
 
   }
 
-  private createBindGroup() {
+  private createBindGroupLayout() {
+
+    // config
+    this.configBindGroupLayout = device.createBindGroupLayout({
+      entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }]
+    });
 
     // neighbor
     this.neighborBindGroupLayout = device.createBindGroupLayout({
       entries: [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }
-      ]
-    });
-
-    this.neighborBindGroup = device.createBindGroup({
-      layout: this.neighborBindGroupLayout,
-      entries: [
-        { binding: 0, resource: { buffer: this.neighborSearch.neighborOffset } },
-        { binding: 1, resource: { buffer: this.neighborSearch.neighborList } }
       ]
     });
 
@@ -152,17 +174,6 @@ class PBF extends PBFConfig {
       ]
     });
 
-    this.integrationBindGroup = device.createBindGroup({
-      layout: this.integrationBindGroupLayout,
-      entries: [
-        { binding: 0, resource: { buffer: this.position } },
-        { binding: 1, resource: { buffer: this.position2 } },
-        { binding: 2, resource: { buffer: this.velocity } },
-        { binding: 3, resource: { buffer: this.acceleration } },
-        { binding: 4, resource: { buffer: this.gravityBuffer } },
-      ]
-    });
-
     // pressure constrain
     this.constrainBindGroupLayout = device.createBindGroupLayout({
       entries: [
@@ -171,17 +182,6 @@ class PBF extends PBFConfig {
         { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }
-      ]
-    });
-
-    this.constrainBindGroup = device.createBindGroup({
-      layout: this.constrainBindGroupLayout,
-      entries: [
-        { binding: 0, resource: { buffer: this.position2 } },
-        { binding: 1, resource: { buffer: this.velocity } }, // delta position
-        { binding: 2, resource: { buffer: this.lambda } },
-        { binding: 3, resource: { buffer: this.boundaryData } },
-        { binding: 4, resource: { buffer: this.boundaryModel.field } }
       ]
     });
 
@@ -197,11 +197,55 @@ class PBF extends PBFConfig {
       ]
     });
 
+  }
+
+  private createBindGroup() {
+
+    // config
+    this.configBindGroup = device.createBindGroup({
+      layout: this.configBindGroupLayout,
+      entries: [{ binding: 0, resource: { buffer: this.optionsBuffer } }]
+    })
+
+    // neighbor
+    this.neighborBindGroup = device.createBindGroup({
+      layout: this.neighborBindGroupLayout,
+      entries: [
+        { binding: 0, resource: { buffer: this.neighborSearch.neighborOffset } },
+        { binding: 1, resource: { buffer: this.neighborSearch.neighborList } }
+      ]
+    });
+
+    // time integration
+    this.integrationBindGroup = device.createBindGroup({
+      layout: this.integrationBindGroupLayout,
+      entries: [
+        { binding: 0, resource: { buffer: this.position } },
+        { binding: 1, resource: { buffer: this.position2 } },
+        { binding: 2, resource: { buffer: this.velocity } },
+        { binding: 3, resource: { buffer: this.acceleration } },
+        { binding: 4, resource: { buffer: this.gravityBuffer } },
+      ]
+    });
+
+    // pressure constrain
+    this.constrainBindGroup = device.createBindGroup({
+      layout: this.constrainBindGroupLayout,
+      entries: [
+        { binding: 0, resource: { buffer: this.position2 } },
+        { binding: 1, resource: { buffer: this.deltaPosition } },
+        { binding: 2, resource: { buffer: this.lambda } },
+        { binding: 3, resource: { buffer: this.boundaryData } },
+        { binding: 4, resource: { buffer: this.boundaryModel.field } }
+      ]
+    });
+
+    // non pressure force
     this.nonPressureBindGroup = device.createBindGroup({
       layout: this.nonPressureBindGroupLayout,
       entries: [
         { binding: 0, resource: { buffer: this.position } },
-        { binding: 1, resource: { buffer: this.position2 } }, // angular velocity
+        { binding: 1, resource: { buffer: this.angularVelocity } }, // position2
         { binding: 2, resource: { buffer: this.velocity } },
         { binding: 3, resource: { buffer: this.acceleration } },
         { binding: 4, resource: { buffer: this.normal } },
@@ -213,19 +257,18 @@ class PBF extends PBFConfig {
 
   public async initResource() {
 
-    this.createBasicStorageData();
+    this.createBindGroupLayout();
+    this.createBaseStorageData();
     this.createStorageData();
-
-    // console.log(this.computeParticleDensity(34460))
 
     // boundary model
     this.boundaryModel = new BoundaryModel();
     const data = await loader.loadFile(this.boundaryFilePath) as string;
-    await this.boundaryModel.initResource( data );
+    await this.boundaryModel.initResource(data);
 
     // neighbor search
-    this.neighborSearch = new NeighborSearch( this );
-    await this.neighborSearch.initResource( this.position2 );
+    this.neighborSearch = new NeighborSearch(this);
+    await this.neighborSearch.initResource(this.configBindGroupLayout, this.position2);
 
     this.createBindGroup();
     await this.initComputePipeline();
@@ -243,24 +286,20 @@ class PBF extends PBFConfig {
 
     // integration
     const integrationPipelineLayout = device.createPipelineLayout({ 
-      bindGroupLayouts: [this.integrationBindGroupLayout] 
+      bindGroupLayouts: [this.configBindGroupLayout, this.integrationBindGroupLayout] 
     });
     this.forceApplyPipeline = await device.createComputePipelineAsync({
       label: 'Force Apply Pipeline (PBF)',
       layout: integrationPipelineLayout,
       compute: {
         module: device.createShaderModule({ code: TimeIntegrationShader }),
-        entryPoint: 'main',
-        constants: {
-          ParticleCount: this.particleCount,
-          DeltaT: this.timeStep
-        }
+        entryPoint: 'main'
       }
     });
 
     // constrain
     const constrainPipelineLayout = device.createPipelineLayout({
-      bindGroupLayouts: [this.neighborBindGroupLayout, this.constrainBindGroupLayout]
+      bindGroupLayouts: [this.configBindGroupLayout, this.neighborBindGroupLayout, this.constrainBindGroupLayout]
     });
 
     this.boundaryVolumePipeline = await device.createComputePipelineAsync({
@@ -270,7 +309,6 @@ class PBF extends PBFConfig {
         module: device.createShaderModule({ code: BoundaryVolumeShader }),
         entryPoint: 'main',
         constants: {
-          ParticleCount: this.particleCount,
           ParticleRadius: this.particleRadius
         }
       }
@@ -283,7 +321,6 @@ class PBF extends PBFConfig {
         module: device.createShaderModule({ code: LambdaCalculationShader }),
         entryPoint: 'main',
         constants: {
-          ParticleCount: this.particleCount,
           ParticleVolume: this.particleVolume,
           ParticleVolume2: this.particleVolume * this.particleVolume,
           LambdaEPS: this.lambdaEPS
@@ -298,9 +335,7 @@ class PBF extends PBFConfig {
         module: device.createShaderModule({ code: ConstrainSolveShader }),
         entryPoint: 'main',
         constants: {
-          ParticleCount: this.particleCount,
-          ParticleVolume: this.particleVolume,
-          // ScorrCoef: this.getScorrCoefficient()
+          ParticleVolume: this.particleVolume
         }
       }
     });
@@ -310,16 +345,13 @@ class PBF extends PBFConfig {
       layout: constrainPipelineLayout,
       compute: {
         module: device.createShaderModule({ code: ConstrainApplyShader }),
-        entryPoint: 'main',
-        constants: {
-          ParticleCount: this.particleCount
-        }
+        entryPoint: 'main'
       }
     });
 
     // non pressure force
     const nonPressurePipelineLayout = device.createPipelineLayout({
-      bindGroupLayouts: [this.neighborBindGroupLayout, this.nonPressureBindGroupLayout]
+      bindGroupLayouts: [this.configBindGroupLayout, this.neighborBindGroupLayout, this.nonPressureBindGroupLayout]
     });
     this.attributeUpdatePipeline = await device.createComputePipelineAsync({
       label: 'Attribute Update Pipeline (PBF)',
@@ -328,9 +360,7 @@ class PBF extends PBFConfig {
         module: device.createShaderModule({ code: AttributeUpdateShader }),
         entryPoint: 'main',
         constants: {
-          ParticleCount: this.particleCount,
-          ParticleWeight: this.particleWeight,
-          InvDeltaT: 1 / this.timeStep
+          ParticleWeight: this.particleWeight
         }
       }
     });
@@ -342,7 +372,6 @@ class PBF extends PBFConfig {
         module: device.createShaderModule({ code: VorticityConfinementShader }),
         entryPoint: 'main',
         constants: {
-          ParticleCount: this.particleCount,
           ParticleWeight: this.particleWeight
         }
       }
@@ -355,13 +384,8 @@ class PBF extends PBFConfig {
         module: device.createShaderModule({ code: XSPHShader }),
         entryPoint: 'main',
         constants: {
-          InvDeltaT: 1 / this.timeStep,
           DoubleDensity0: 2 * this.restDensity,
-          ParticleCount: this.particleCount,
-          ParticleWeight: this.particleWeight,
-          XSPHCoef: this.XSPHCoef,
-          VorticityCoef: this.VorticityCoef,
-          TensionCoef: this.SurfaceTensionCoef
+          ParticleWeight: this.particleWeight
         }
       }
     });
@@ -370,21 +394,23 @@ class PBF extends PBFConfig {
 
   public run(commandEncoder: GPUCommandEncoder) {
 
-    if (this.pause || !this.debug) return;
+    if (this.pause) return;
 
     this.neighborSearch.clearBuffer(commandEncoder);
     
     const passEncoder = commandEncoder.beginComputePass();
     const workgroupCount = Math.ceil(this.particleCount / 256);
 
-    passEncoder.setBindGroup(0, this.integrationBindGroup);
+    passEncoder.setBindGroup(0, this.configBindGroup);
+
+    passEncoder.setBindGroup(1, this.integrationBindGroup);
     passEncoder.setPipeline(this.forceApplyPipeline);
     passEncoder.dispatchWorkgroups(workgroupCount);
 
     this.neighborSearch.execute(passEncoder);
 
-    passEncoder.setBindGroup(0, this.neighborBindGroup);
-    passEncoder.setBindGroup(1, this.constrainBindGroup);
+    passEncoder.setBindGroup(1, this.neighborBindGroup);
+    passEncoder.setBindGroup(2, this.constrainBindGroup);
     for (let i = 0; i < this.constrainIterationCount; i++) {
       passEncoder.setPipeline(this.boundaryVolumePipeline);
       passEncoder.dispatchWorkgroups(workgroupCount);
@@ -402,7 +428,7 @@ class PBF extends PBFConfig {
     // passEncoder.setPipeline(this.boundaryVolumePipeline);
     // passEncoder.dispatchWorkgroups(workgroupCount);
 
-    passEncoder.setBindGroup(1, this.nonPressureBindGroup);
+    passEncoder.setBindGroup(2, this.nonPressureBindGroup);
     passEncoder.setPipeline(this.attributeUpdatePipeline);
     passEncoder.dispatchWorkgroups(workgroupCount);
 
@@ -445,7 +471,7 @@ class PBF extends PBFConfig {
       const buffer1 = this.debugBuffer1.getMappedRange(0, 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT);
       const array1 = new Float32Array(buffer1);
 
-      console.log(array1);
+      // console.log(array1);
       this.debugBuffer1.unmap();
 
       // await this.debugBuffer1.mapAsync(GPUMapMode.READ);

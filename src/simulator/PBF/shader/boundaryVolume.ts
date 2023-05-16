@@ -1,3 +1,4 @@
+import { ShaderStruct } from '../../../common/shader';
 import { PBFConfig } from '../PBFConfig';
 import { DiscreteField, ShapeFunction, Interpolation } from '../../boundary/discreteFieldShader';
 
@@ -8,21 +9,23 @@ const GridSize: vec3<f32> = vec3<f32>(${PBFConfig.BOUNDARY_GRID[0]}, ${PBFConfig
 const GridSizeU: vec3<u32> = vec3<u32>(GridSize);
 const GridSpaceSize: vec3<f32> = 1.0 / GridSize;
 
-override ParticleCount: u32;
 override ParticleRadius: f32;
 
+${ShaderStruct.SimulationOptions}
 ${DiscreteField}
 ${ShapeFunction}
 ${Interpolation}
 
-@group(1) @binding(0) var<storage, read_write> position2: array<vec3<f32>>;
-@group(1) @binding(3) var<storage, read_write> boundaryData: array<vec4<f32>>;
-@group(1) @binding(4) var<storage, read> field: DiscreteField;
+@group(0) @binding(0) var<uniform> options: SimulationOptions;
+
+@group(2) @binding(0) var<storage, read_write> position2: array<vec3<f32>>;
+@group(2) @binding(3) var<storage, read_write> boundaryData: array<vec4<f32>>;
+@group(2) @binding(4) var<storage, read> field: DiscreteField;
 
 @compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
-  if (particleIndex >= ParticleCount) { return; }
+  if (particleIndex >= options.particleCount) { return; }
 
   let x = position2[particleIndex];
   var N: array<vec4<f32>, 8>;

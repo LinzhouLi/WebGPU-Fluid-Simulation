@@ -1,5 +1,5 @@
 import { device } from '../../controller';
-import { ScanShaderCode, CopyShaderCode, GathreShaderCode } from './scanShader';
+import { ScanShaderCode, CopyShaderCode, GatherShaderCode } from './scanShader';
 
 const THREAD_COUNT = 256;
 
@@ -42,7 +42,14 @@ class ExclusiveScan {
 
   }
 
-  public async initResource() {
+  public reset(commandEncoder: GPUCommandEncoder) {
+
+    commandEncoder.clearBuffer(this.tempSrcArrayBuffer);
+    commandEncoder.clearBuffer(this.tempDestArrayBuffer);
+
+  }
+
+  public async initResource( groupLayout: GPUBindGroupLayout ) {
 
     // temp array buffer
     const tempBufferDesp = {
@@ -92,7 +99,7 @@ class ExclusiveScan {
     if (!ExclusiveScan.scanPipeline) {
       ExclusiveScan.scanPipeline = await device.createComputePipelineAsync({
         label: 'Scan Pipeline (ExclusiveScan)',
-        layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+        layout: device.createPipelineLayout({ bindGroupLayouts: [groupLayout, bindGroupLayout] }),
         compute: {
           module: device.createShaderModule({ code: ScanShaderCode }),
           entryPoint: 'main'
@@ -103,7 +110,7 @@ class ExclusiveScan {
     if (!ExclusiveScan.copyPipeline) {
       ExclusiveScan.copyPipeline = await device.createComputePipelineAsync({
         label: 'Copy Pipeline (ExclusiveScan)',
-        layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout, bindGroupLayout] }),
+        layout: device.createPipelineLayout({ bindGroupLayouts: [groupLayout, bindGroupLayout, bindGroupLayout] }),
         compute: {
           module: device.createShaderModule({ code: CopyShaderCode }),
           entryPoint: 'main'
@@ -114,9 +121,9 @@ class ExclusiveScan {
     if (!ExclusiveScan.gatherPipeline) {
       ExclusiveScan.gatherPipeline = await device.createComputePipelineAsync({
         label: 'Gather Pipeline (ExclusiveScan)',
-        layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout, bindGroupLayout] }),
+        layout: device.createPipelineLayout({ bindGroupLayouts: [groupLayout, bindGroupLayout, bindGroupLayout] }),
         compute: {
-          module: device.createShaderModule({ code: GathreShaderCode }),
+          module: device.createShaderModule({ code: GatherShaderCode }),
           entryPoint: 'main'
         }
       });
@@ -124,22 +131,29 @@ class ExclusiveScan {
 
   }
 
-  public execute(passEncoder: GPUComputePassEncoder) {
+  public execute(passEncoder: GPUComputePassEncoder, scanLength: number = null) {
 
-    passEncoder.setBindGroup(0, this.scan1BindGroup);
-    passEncoder.setBindGroup(1, this.scan2BindGroup);
+    const scanLen = scanLength ? scanLength : this.arrayLength;
+    
+    if (scanLen % ExclusiveScan.ARRAY_ALIGNMENT != 0)
+      throw new Error(`ExclusiveScan Array Length should be a power of ${ExclusiveScan.ARRAY_ALIGNMENT}!`);
+    if (scanLen > ExclusiveScan.MAX_ARRAY_LENGTH)
+      throw new Error(`ExclusiveScan Array Length should less than ${ExclusiveScan.MAX_ARRAY_LENGTH}!`);
+
+    passEncoder.setBindGroup(1, this.scan1BindGroup);
+    passEncoder.setBindGroup(2, this.scan2BindGroup);
 
     // scan source array block by block (first scan)
     passEncoder.setPipeline(ExclusiveScan.scanPipeline);
-    const blockCount = Math.ceil(this.arrayLength / ExclusiveScan.ARRAY_ALIGNMENT);
+    const blockCount = Math.ceil(scanLen / ExclusiveScan.ARRAY_ALIGNMENT);
     passEncoder.dispatchWorkgroups( blockCount );
 
     // copy block result
     passEncoder.setPipeline(ExclusiveScan.copyPipeline);
     passEncoder.dispatchWorkgroups( Math.ceil(blockCount / THREAD_COUNT) );
 
-    passEncoder.setBindGroup(0, this.scan2BindGroup);
-    passEncoder.setBindGroup(1, this.scan1BindGroup);
+    passEncoder.setBindGroup(1, this.scan2BindGroup);
+    passEncoder.setBindGroup(2, this.scan1BindGroup);
 
     // scan block result in one block (second scan)
     passEncoder.setPipeline(ExclusiveScan.scanPipeline);
@@ -147,7 +161,7 @@ class ExclusiveScan {
 
     // gather result
     passEncoder.setPipeline(ExclusiveScan.gatherPipeline);
-    passEncoder.dispatchWorkgroups( Math.ceil(this.arrayLength / THREAD_COUNT) );
+    passEncoder.dispatchWorkgroups( Math.ceil(scanLen / THREAD_COUNT) );
 
   }
 

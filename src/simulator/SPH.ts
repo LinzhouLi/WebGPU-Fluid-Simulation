@@ -21,14 +21,19 @@ abstract class SPH {
     ResourceFactory.RegisterFormats(SPH.ResourceFormats);
   }
 
+  static MAX_PARTICAL_NUM = 1 << 16 - 1;
   static MAX_NEIGHBOR_COUNT = 60;
   static KERNEL_RADIUS = 0.025;
+  static TIME_STEP = 1 / 300;
 
   public pause: boolean;
   public particleCount: number;
   public stepCount: number;
   protected particleRadius: number;
-  protected gravity: number = 0.0;
+  protected restDensity: number = 1000.0;
+  protected particleVolume: number;
+  protected particleWeight: number;
+  protected gravity: number = 9.8;
 
   protected particlePositionArray: Array<number>;
   protected gravityArray: Float32Array;
@@ -41,8 +46,11 @@ abstract class SPH {
   constructor(particleRadius: number = 0.006, stepCount: number = 25) {
 
     this.pause = true;
-    this.particleRadius = particleRadius;
     this.stepCount = stepCount;
+    this.particleRadius = particleRadius;
+    const particleDiam = 2 * this.particleRadius;
+    this.particleVolume = 0.9 * particleDiam * particleDiam * particleDiam;
+    this.particleWeight = this.particleVolume * this.restDensity;
 
     this.gravityBuffer = device.createBuffer({
       size: 4 * Float32Array.BYTES_PER_ELEMENT,
@@ -55,38 +63,46 @@ abstract class SPH {
       this.gravityArray, 0
     );
 
-    this.clearParticles();
+    this.particlePositionArray = [];
+    this.particleCount = 0;
+
+  }
+
+  public baseReset(commandEncoder: GPUCommandEncoder) {
+
+    commandEncoder.clearBuffer(this.position);
+    commandEncoder.clearBuffer(this.velocity);
+    commandEncoder.clearBuffer(this.acceleration);
+
+    this.particlePositionArray = [];
+    this.particleCount = 0;
+
+  }
+
+  public setParticlePosition() {
+
+    if (this.particlePositionArray.length != this.particleCount * 4) {
+      throw new Error('Illegal length of Particle Position Buffer!');
+    }
+
+    const bufferArray = new Float32Array(this.particlePositionArray);
+    device.queue.writeBuffer( this.position, 0, bufferArray, 0 );
 
   }
 
   public stop() { this.pause = true; }
   public start() { this.pause = this.position ? false : true; }
 
-  public clearParticles() {
-
-    this.particlePositionArray = [];
-    this.particleCount = 0;
-    this.position = null;
-
-  }
-
-  public createBasicStorageData() {
-    
-    if (this.particlePositionArray.length != this.particleCount * 4) {
-      throw new Error('Illegal length of Particle Position Buffer!');
-    }
+  public createBaseStorageData() {
 
     const attributeBufferDesp = {
-      size: 4 * this.particleCount * Float32Array.BYTES_PER_ELEMENT,
+      size: 4 * SPH.MAX_PARTICAL_NUM * Float32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
     } as GPUBufferDescriptor;
 
     this.position = device.createBuffer(attributeBufferDesp);
     this.velocity = device.createBuffer(attributeBufferDesp);
     this.acceleration = device.createBuffer(attributeBufferDesp);
-
-    const bufferArray = new Float32Array(this.particlePositionArray);
-    device.queue.writeBuffer( this.position, 0, bufferArray, 0 );
 
   }
 
@@ -189,6 +205,9 @@ abstract class SPH {
   public abstract initResource(): Promise<void>;
   public abstract initComputePipeline(): Promise<void>;
   public abstract run(commandEncoder: GPUCommandEncoder): void;
+  public abstract reset(): void;
+  public abstract optionsChange(e: any): void;
+  public abstract setConfig(conf: any): void;
   public abstract update(): void;
   public abstract debug(): Promise<void>;
 

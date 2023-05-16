@@ -8,8 +8,8 @@ const BANK_COUNT: u32 = 32;
 const LOG_BANK_COUNT: u32 = 5;
 const SHARED_DATA_SIZE: u32 = DOUBLE_THREAD_COUNT + ((DOUBLE_THREAD_COUNT - 1) >> LOG_BANK_COUNT);
 
-@group(0) @binding(0) var<storage, read_write> scanSource: array<u32>;
-@group(0) @binding(1) var<storage, read_write> scanResult: array<u32>;
+@group(1) @binding(0) var<storage, read_write> scanSource: array<u32>;
+@group(1) @binding(1) var<storage, read_write> scanResult: array<u32>;
 
 var<workgroup> sharedData: array<u32, SHARED_DATA_SIZE>;
 
@@ -75,9 +75,9 @@ const CopyShaderCode = /* wgsl */`
 const THREAD_COUNT: u32 = ${THREAD_COUNT};
 const STRIDE = 2 * THREAD_COUNT;
 
-@group(0) @binding(0) var<storage, read_write> scanSource: array<u32>;
-@group(0) @binding(1) var<storage, read_write> scanResult: array<u32>;
-@group(1) @binding(0) var<storage, read_write> tempScanSource: array<u32>;
+@group(1) @binding(0) var<storage, read_write> scanSource: array<u32>;
+@group(1) @binding(1) var<storage, read_write> scanResult: array<u32>;
+@group(2) @binding(0) var<storage, read_write> tempScanSource: array<u32>;
 
 @compute @workgroup_size(THREAD_COUNT, 1, 1)
 fn main ( @builtin(global_invocation_id) global_id: vec3<u32> ) {
@@ -89,12 +89,12 @@ fn main ( @builtin(global_invocation_id) global_id: vec3<u32> ) {
 `;
 
 
-const GathreShaderCode = /* wgsl */`
+const GatherShaderCode = /* wgsl */`
 const THREAD_COUNT: u32 = ${THREAD_COUNT};
 const STRIDE = 2 * THREAD_COUNT;
 
-@group(0) @binding(1) var<storage, read_write> tempScanResult: array<u32>;
-@group(1) @binding(1) var<storage, read_write> scanResult: array<u32>;
+@group(1) @binding(1) var<storage, read_write> tempScanResult: array<u32>;
+@group(2) @binding(1) var<storage, read_write> scanResult: array<u32>;
 
 @compute @workgroup_size(THREAD_COUNT, 1, 1)
 fn main (
@@ -108,4 +108,4 @@ fn main (
 `;
 
 
-export { ScanShaderCode, CopyShaderCode, GathreShaderCode };
+export { ScanShaderCode, CopyShaderCode, GatherShaderCode };

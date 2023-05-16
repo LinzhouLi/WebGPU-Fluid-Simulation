@@ -202,6 +202,9 @@ class Controller {
     // );
     await this.simulator.initResource();
     this.simulator.enableInteraction();
+    this.simulator.setParticlePosition();
+    this.config.initSimulationOptions((e) => this.simulator.optionsChange(e));
+    this.simulator.setConfig(this.config.simulationOptions);
     console.log(this.simulator.particleCount);
 
     // fluid renderer

@@ -1,4 +1,5 @@
-import { PBFConfig } from '../PBF/PBFConfig';
+import { ShaderStruct } from '../../common/shader';
+
 
 const GridStruct = /* wgsl */`
 struct Grid {
@@ -7,28 +8,23 @@ struct Grid {
 };
 `;
 
-const NeighborStruct = /* wgsl */`
-struct Neighbor {
-  count: u32,
-  particleIndex: array<u32, MaxNeighborCount>
-};
-`;
-
 
 const ParticleInsertShader = /* wgsl */`
-override ParticleCount: u32;
+${ShaderStruct.SimulationOptions}
 ${GridStruct}
 
-@group(0) @binding(0) var<storage, read_write> particlePosition: array<vec3<f32>>;
+@group(0) @binding(0) var<uniform> options: SimulationOptions;
 
-@group(0) @binding(1) var<storage, read_write> cellParticleCount: array<atomic<u32>>;
-@group(0) @binding(2) var<storage, read_write> particleSortIndex: array<u32>;
-@group(0) @binding(3) var<uniform> grid: Grid;
+@group(1) @binding(0) var<storage, read_write> particlePosition: array<vec3<f32>>;
+
+@group(1) @binding(1) var<storage, read_write> cellParticleCount: array<atomic<u32>>;
+@group(1) @binding(2) var<storage, read_write> particleSortIndex: array<u32>;
+@group(1) @binding(3) var<uniform> grid: Grid;
 
 @compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
-  if (particleIndex >= ParticleCount) { return; }
+  if (particleIndex >= options.particleCount) { return; }
   let cellCoord = vec3<u32>(floor(particlePosition[particleIndex] * vec3<f32>(grid.dimension)));
   let cellIndex = dot(cellCoord, grid.coord2index);
   particleSortIndex[particleIndex] = atomicAdd(&(cellParticleCount[cellIndex]), 1u);
@@ -38,20 +34,22 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
 
 
 const CountingSortShader = /* wgsl */`
-override ParticleCount: u32;
+${ShaderStruct.SimulationOptions}
 ${GridStruct}
 
-@group(0) @binding(0) var<storage, read_write> particlePosition: array<vec3<f32>>;
+@group(0) @binding(0) var<uniform> options: SimulationOptions;
 
-@group(0) @binding(3) var<storage, read_write> cellOffset: array<u32>;
-@group(0) @binding(4) var<storage, read_write> particleSortIndex: array<u32>;
-@group(0) @binding(5) var<storage, read_write> particleSortIndexCopy: array<u32>;
-@group(0) @binding(6) var<uniform> grid: Grid;
+@group(1) @binding(0) var<storage, read_write> particlePosition: array<vec3<f32>>;
+
+@group(1) @binding(3) var<storage, read_write> cellOffset: array<u32>;
+@group(1) @binding(4) var<storage, read_write> particleSortIndex: array<u32>;
+@group(1) @binding(5) var<storage, read_write> particleSortIndexCopy: array<u32>;
+@group(1) @binding(6) var<uniform> grid: Grid;
 
 @compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
-  if (particleIndex >= ParticleCount) { return; }
+  if (particleIndex >= options.particleCount) { return; }
   let position = particlePosition[particleIndex];
   let cellCoord = vec3<u32>(floor(position * vec3<f32>(grid.dimension)));
   let cellIndex = dot(cellCoord, grid.coord2index);
@@ -86,22 +84,24 @@ const NeighborSearch1 = /* wgsl */`
 
 
 const NeighborCountShader = /* wgsl */`
-override ParticleCount: u32;
 override SearchRadiusSqr: f32;
+${ShaderStruct.SimulationOptions}
 ${GridStruct}
 
-@group(0) @binding(0) var<storage, read_write> particlePosition: array<vec3<f32>>;
-@group(0) @binding(1) var<storage, read_write> neighborCount: array<u32>;
+@group(0) @binding(0) var<uniform> options: SimulationOptions;
 
-@group(0) @binding(2) var<storage, read_write> cellParticleCount: array<u32>;
-@group(0) @binding(3) var<storage, read_write> cellOffset: array<u32>;
-@group(0) @binding(5) var<storage, read_write> particleSortIndexCopy: array<u32>;
-@group(0) @binding(6) var<uniform> grid: Grid;
+@group(1) @binding(0) var<storage, read_write> particlePosition: array<vec3<f32>>;
+@group(1) @binding(1) var<storage, read_write> neighborCount: array<u32>;
+
+@group(1) @binding(2) var<storage, read_write> cellParticleCount: array<u32>;
+@group(1) @binding(3) var<storage, read_write> cellOffset: array<u32>;
+@group(1) @binding(5) var<storage, read_write> particleSortIndexCopy: array<u32>;
+@group(1) @binding(6) var<uniform> grid: Grid;
 
 @compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
-  if (particleIndex >= ParticleCount) { return; }
+  if (particleIndex >= options.particleCount) { return; }
 
   let GridDim = vec3<i32>(grid.dimension);
   let GridCoord2Index = vec3<i32>(grid.coord2index);
@@ -178,24 +178,25 @@ const NeighborSearch2 = /* wgsl */`
 
 
 const NeighborListShader = /* wgsl */`
-override ParticleCount: u32;
 override SearchRadiusSqr: f32;
-const MaxNeighborCount: u32 = ${PBFConfig.MAX_NEIGHBOR_COUNT};
+${ShaderStruct.SimulationOptions}
 ${GridStruct}
 
-@group(0) @binding(0) var<storage, read_write> particlePosition: array<vec3<f32>>;
-@group(0) @binding(1) var<storage, read_write> neighborOffset: array<u32>;
-@group(0) @binding(2) var<storage, read_write> neighborList: array<u32>;
+@group(0) @binding(0) var<uniform> options: SimulationOptions;
 
-@group(0) @binding(3) var<storage, read_write> cellParticleCount: array<u32>;
-@group(0) @binding(4) var<storage, read_write> cellOffset: array<u32>;
-@group(0) @binding(5) var<storage, read_write> particleSortIndexCopy: array<u32>;
-@group(0) @binding(6) var<uniform> grid: Grid;
+@group(1) @binding(0) var<storage, read_write> particlePosition: array<vec3<f32>>;
+@group(1) @binding(1) var<storage, read_write> neighborOffset: array<u32>;
+@group(1) @binding(2) var<storage, read_write> neighborList: array<u32>;
+
+@group(1) @binding(3) var<storage, read_write> cellParticleCount: array<u32>;
+@group(1) @binding(4) var<storage, read_write> cellOffset: array<u32>;
+@group(1) @binding(5) var<storage, read_write> particleSortIndexCopy: array<u32>;
+@group(1) @binding(6) var<uniform> grid: Grid;
 
 @compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   let particleIndex = global_id.x;
-  if (particleIndex >= ParticleCount) { return; }
+  if (particleIndex >= options.particleCount) { return; }
 
   let GridDim = vec3<i32>(grid.dimension);
   let GridCoord2Index = vec3<i32>(grid.coord2index);

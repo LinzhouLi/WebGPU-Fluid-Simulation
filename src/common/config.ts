@@ -18,6 +18,12 @@ class Config {
     tintColor: { r: 6, g: 105, b: 217 }
   };
 
+  public simulationOptions = {
+    XSPH: 0.01,
+    vorticity: 0.1,
+    surfaceTension: 0.5
+  };
+
   constructor() {
     this.gui = new GUI();
   }
@@ -49,6 +55,9 @@ class Config {
   public initSimulationOptions(onChangeFunc: (msg) => void) {
 
     const simulationOptionGUI = this.gui.addFolder('Fluid Simulation Options');
+    simulationOptionGUI.add(this.simulationOptions, 'XSPH', 0, 0.1);
+    simulationOptionGUI.add(this.simulationOptions, 'vorticity', 0, 1);
+    simulationOptionGUI.add(this.simulationOptions, 'surfaceTension', 0, 1);
     simulationOptionGUI.onFinishChange(onChangeFunc);
     
   }

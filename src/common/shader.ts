@@ -47,7 +47,16 @@ struct RenderingOptions {
 }
 `;
 
-const ShaderStruct = { Camera, DirectionalLight, Transform, MeshMaterial, SphereMaterial, RenderingOptions };
+const SimulationOptions = /* wgsl */`
+struct SimulationOptions {
+  particleCount: u32,
+  XSPHCoef: f32,
+  vorticityCoef: f32,
+  tensionCoef: f32
+}
+`;
+
+const ShaderStruct = { Camera, DirectionalLight, Transform, MeshMaterial, SphereMaterial, RenderingOptions, SimulationOptions };
 
 
 const sRGBGammaEncode = /* wgsl */`

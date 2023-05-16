@@ -10,6 +10,12 @@ class BoundaryModel {
 
   constructor() { }
 
+  public reset(commandEncoder: GPUCommandEncoder) {
+
+    commandEncoder.clearBuffer(this.field);
+
+  }
+
   private createStorageData(
     sdf_data: Float32Array,
     volumeMap_data: Float32Array
@@ -26,7 +32,7 @@ class BoundaryModel {
 
   }
 
-  public async initResource( data: string) {
+  public async initResource(data: string) {
 
     const data_split = data.split('\n');
     this.resolution = data_split[0].split(' ').map(parseFloat);
