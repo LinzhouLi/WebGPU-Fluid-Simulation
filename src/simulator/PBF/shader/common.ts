@@ -23,8 +23,8 @@ fn kernalCohesion(r: vec3<f32>, r_len: f32) -> vec3<f32> {
   let t = t3.x * t3.y; // (h - r)^3 * r^3
   var result = select(fma(2.0, t, bais), t, r_len > halfKernelRadius);
   result = select(0.0, result, r_len <= KernelRadius);
-  let r_norm = select( vec3<f32>(0.0), r / r_len, r_len > EPS ); // handle r_len == 0
-  return result * r_norm;
+  let r_norm = select( vec3<f32>(0.0), r / r_len, r_len > 0.0 ); // handle r_len == 0
+  return coef * result * r_norm;
 }
 `;
 
@@ -34,7 +34,7 @@ fn kernalSpikyGrad(r: vec3<f32>, r_len: f32) -> vec3<f32> {
   const coef = -45.0 / (PI * pow(KernelRadius, 6));
   let t = KernelRadius - r_len;
   let x = select( 0.0, t * t, r_len <= KernelRadius );
-  let r_norm = select( vec3<f32>(0.0), r / r_len, r_len > EPS ); // handle r_len == 0
+  let r_norm = select( vec3<f32>(0.0), r / r_len, r_len > 0.0 ); // handle r_len == 0
   return coef * x * r_norm; // normalize(r) = r / r_len
 }
 `;
@@ -42,7 +42,7 @@ fn kernalSpikyGrad(r: vec3<f32>, r_len: f32) -> vec3<f32> {
 
 const Boundary = /* wgsl */`
 fn boundary(pos: vec3<f32>) -> vec3<f32> {
-  const EPS = 1e-3;
+  const EPS = 1e-4;
   const UP = vec3<f32>(1.0 - EPS);
   const BOTTOM = vec3<f32>(EPS);
   return max(min(pos, UP), BOTTOM);

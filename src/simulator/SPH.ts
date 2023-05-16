@@ -4,7 +4,7 @@ import type { ResourceType } from '../common/resourceFactory';
 import { ResourceFactory } from '../common/resourceFactory';
 import { device } from '../controller';
 
-abstract class LagrangianSimulator {
+abstract class SPH {
 
   private static ResourceFormats = {
     particlePosition: {
@@ -18,7 +18,7 @@ abstract class LagrangianSimulator {
   };
 
   public static RegisterResourceFormats() {
-    ResourceFactory.RegisterFormats(LagrangianSimulator.ResourceFormats);
+    ResourceFactory.RegisterFormats(SPH.ResourceFormats);
   }
 
   static MAX_NEIGHBOR_COUNT = 60;
@@ -194,4 +194,4 @@ abstract class LagrangianSimulator {
 
 }
 
-export { LagrangianSimulator };
+export { SPH };

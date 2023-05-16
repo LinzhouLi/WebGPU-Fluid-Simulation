@@ -300,7 +300,7 @@ class PBF extends PBFConfig {
         constants: {
           ParticleCount: this.particleCount,
           ParticleVolume: this.particleVolume,
-          ScorrCoef: this.getScorrCoefficient()
+          // ScorrCoef: this.getScorrCoefficient()
         }
       }
     });
@@ -370,7 +370,7 @@ class PBF extends PBFConfig {
 
   public run(commandEncoder: GPUCommandEncoder) {
 
-    if (this.pause) return;
+    if (this.pause || !this.debug) return;
 
     this.neighborSearch.clearBuffer(commandEncoder);
     
@@ -406,8 +406,8 @@ class PBF extends PBFConfig {
     passEncoder.setPipeline(this.attributeUpdatePipeline);
     passEncoder.dispatchWorkgroups(workgroupCount);
 
-    // passEncoder.setPipeline(this.vortcityConfinementPipeline);
-    // passEncoder.dispatchWorkgroups(workgroupCount);
+    passEncoder.setPipeline(this.vortcityConfinementPipeline);
+    passEncoder.dispatchWorkgroups(workgroupCount);
 
     passEncoder.setPipeline(this.XSPHPipeline);
     passEncoder.dispatchWorkgroups(workgroupCount);

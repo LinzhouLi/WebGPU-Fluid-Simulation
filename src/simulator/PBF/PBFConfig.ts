@@ -1,6 +1,6 @@
-import { LagrangianSimulator } from '../LagrangianSimulator';
+import { SPH } from '../SPH';
 
-abstract class PBFConfig extends LagrangianSimulator {
+abstract class PBFConfig extends SPH {
   
   static BOUNDARY_GRID = [20, 20, 20];
 
@@ -11,9 +11,9 @@ abstract class PBFConfig extends LagrangianSimulator {
   protected scorrCoefDq = 0.1; // [0.1, 0.3]
   protected scorrCoefN = 4; // fixed
 
-  protected XSPHCoef = 0.1;
+  protected XSPHCoef = 0.01;
   protected VorticityCoef = 0.1;
-  protected SurfaceTensionCoef = 0.1;
+  protected SurfaceTensionCoef = 0.5;
 
   protected restDensity: number = 1000.0;
   protected particleVolume: number;

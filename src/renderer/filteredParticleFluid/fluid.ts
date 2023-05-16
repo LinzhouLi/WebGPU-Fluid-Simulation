@@ -3,7 +3,7 @@ import type { ResourceType } from '../../common/resourceFactory';
 import { canvasSize, device } from '../../controller';
 import { resourceFactory } from '../../common/base';
 import { ResourceFactory } from '../../common/resourceFactory';
-import { LagrangianSimulator } from '../../simulator/LagrangianSimulator';
+import { SPH } from '../../simulator/SPH';
 import { ParicleRasterizer } from './paricleRasterizer';
 import { TextureFilter } from './textureFilter';
 import { ScreenSpaceRenderer } from './screenSpaceRenderer';
@@ -71,7 +71,7 @@ class FilteredParticleFluid {
   protected postprocessBundle: GPURenderBundle;
 
   constructor(
-    simulator: LagrangianSimulator,
+    simulator: SPH,
     camera: THREE.PerspectiveCamera
   ) {
 

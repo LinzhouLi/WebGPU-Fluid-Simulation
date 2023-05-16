@@ -4,7 +4,6 @@ import { Boundary, KernalPoly6, KernalSpikyGrad } from './common';
 
 const LambdaCalculationShader = /* wgsl */`
 const PI: f32 = ${Math.PI};
-const EPS: f32 = 1e-6;
 const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
 const GridSize: vec3<f32> = vec3<f32>(${PBFConfig.BOUNDARY_GRID[0]}, ${PBFConfig.BOUNDARY_GRID[1]}, ${PBFConfig.BOUNDARY_GRID[2]});
 const GridSizeU: vec3<u32> = vec3<u32>(GridSize);
@@ -84,12 +83,11 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
 
 const ConstrainSolveShader = /* wgsl */`
 const PI: f32 = ${Math.PI};
-const EPS: f32 = 1e-6;
 const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
 
 override ParticleCount: u32;
 override ParticleVolume: f32;
-override ScorrCoef: f32;
+// override ScorrCoef: f32;
 
 ${KernalPoly6}
 ${KernalSpikyGrad}
@@ -127,9 +125,9 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
     positionDeltaLength = length(positionDelta);
     neighborLambda = lambda[nParticleIndex];
 
-    scorr = kernalPoly6(positionDeltaLength); // suppose scorr_n == 4
-    scorr *= scorr;
-    scorr *= ScorrCoef * scorr;
+    // scorr = kernalPoly6(positionDeltaLength); // suppose scorr_n == 4
+    // scorr *= scorr;
+    // scorr *= ScorrCoef * scorr;
     positionUpdate += (selfLambda + neighborLambda) * // + scorr) *
       kernalSpikyGrad(positionDelta, positionDeltaLength);
 

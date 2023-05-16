@@ -1,12 +1,12 @@
 import { device } from '../../controller';
-import { LagrangianSimulator } from '../../simulator/LagrangianSimulator';
+import { SPH } from '../../simulator/SPH';
 import { depthPassVertexShader, depthPassfragmentShader } from './shader/depthPassShader';
 import { volumePassVertexShader, volumePassfragmentShader } from './shader/volumePassShader';
 
 
 class ParicleRasterizer {
 
-  protected simulator: LagrangianSimulator;
+  protected simulator: SPH;
 
   protected bindGroupLayout: GPUBindGroupLayout;
   protected bindGroup: GPUBindGroup;
@@ -19,7 +19,7 @@ class ParicleRasterizer {
 
   protected depthStencilView: GPUTextureView;
 
-  constructor(simulator: LagrangianSimulator) {
+  constructor(simulator: SPH) {
 
     this.simulator = simulator;
 

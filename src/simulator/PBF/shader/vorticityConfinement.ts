@@ -4,7 +4,6 @@ import { KernalSpikyGrad } from './common';
 
 const  VorticityConfinementShader = /* wgsl */`
 const PI: f32 = ${Math.PI};
-const EPS: f32 = 1e-6;
 const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
 
 override ParticleCount: u32;

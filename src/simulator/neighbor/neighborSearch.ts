@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { device } from '../../controller';
-import { LagrangianSimulator } from '../LagrangianSimulator';
+import { SPH } from '../SPH';
 import { PBFConfig } from '../PBF/PBFConfig';
 import { ExclusiveScan } from './exclusiveScan';
 import { ParticleInsertShader, CountingSortShader, NeighborCountShader, NeighborListShader } from './neighborShader';
@@ -49,9 +49,9 @@ class NeighborSearch {
   private debugBuffer1: GPUBuffer;
   private debugBuffer2: GPUBuffer;
 
-  constructor( simulator: LagrangianSimulator ) {
+  constructor( simulator: SPH ) {
 
-    this.searchRadius = LagrangianSimulator.KERNEL_RADIUS;
+    this.searchRadius = SPH.KERNEL_RADIUS;
     this.particleCount = simulator.particleCount;
 
     this.gridDimension = Math.ceil(1.0 / this.searchRadius);
@@ -67,7 +67,7 @@ class NeighborSearch {
 
     // create GPU Buffers
     // neighbor list buffer
-    let bufferSize = LagrangianSimulator.MAX_NEIGHBOR_COUNT * this.particleCount * Uint32Array.BYTES_PER_ELEMENT
+    let bufferSize = SPH.MAX_NEIGHBOR_COUNT * this.particleCount * Uint32Array.BYTES_PER_ELEMENT
     this.neighborList = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE });
 
     // neighbor count/offset buffer

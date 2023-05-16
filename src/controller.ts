@@ -5,7 +5,7 @@ import { ParticleFluid } from './renderer/particleFluid/fluid';
 import { FilteredParticleFluid } from './renderer/filteredParticleFluid/fluid'
 import { Skybox } from './renderer/skybox/skybox';
 import { Mesh } from './renderer/mesh/mesh';
-import { LagrangianSimulator } from './simulator/LagrangianSimulator';
+import { SPH } from './simulator/SPH';
 import { PBF } from './simulator/PBF/PBF';
 import { loader } from './common/loader';
 
@@ -97,7 +97,7 @@ class Controller {
   private mesh: Mesh;
   private particles: ParticleFluid;
   private fluidRender: FilteredParticleFluid;
-  private simulator: LagrangianSimulator;
+  private simulator: SPH;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -108,7 +108,7 @@ class Controller {
     GlobalResource.RegisterResourceFormats();
     Mesh.RegisterResourceFormats();
     FilteredParticleFluid.RegisterResourceFormats();
-    LagrangianSimulator.RegisterResourceFormats();
+    SPH.RegisterResourceFormats();
     // MPM._RegisterResourceFormats();
   }
 
@@ -191,15 +191,15 @@ class Controller {
     // PBF simulator
     const glb = await loader.loadGLTF("model/bunny.glb", true);
     const bunny_mesh = glb.scene.children[0] as THREE.Mesh;
-    bunny_mesh.scale.set(0.5, 0.5, 0.5);
-    bunny_mesh.position.set(0.5, 0.2, 0.5);
+    bunny_mesh.scale.set(0.4, 0.4, 0.4);
+    bunny_mesh.position.set(0.5, 0.3, 0.5);
 
     this.simulator = new PBF();
-    // this.simulator.voxelizeMesh(bunny_mesh);
-    this.simulator.voxelizeCube(
-      new THREE.Vector3(0.15, 0.35, 0.15),
-      new THREE.Vector3(0.65, 0.85, 0.65)
-    );
+    this.simulator.voxelizeMesh(bunny_mesh);
+    // this.simulator.voxelizeCube(
+    //   new THREE.Vector3(0.15, 0.35, 0.15),
+    //   new THREE.Vector3(0.65, 0.85, 0.65)
+    // );
     await this.simulator.initResource();
     this.simulator.enableInteraction();
     console.log(this.simulator.particleCount);

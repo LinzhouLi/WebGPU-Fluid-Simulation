@@ -1,11 +1,11 @@
 import { device } from '../../controller';
 import type { ResourceType } from '../../common/resourceFactory';
 import { ResourceFactory } from '../../common/resourceFactory';
-import { LagrangianSimulator } from "../LagrangianSimulator";
+import { SPH } from "../SPH";
 import { resourceFactory, bindGroupFactory } from '../../common/base';
 import { P2GComputeShader, GridComputeShader, G2PComputeShader } from './MPMShader';
 
-class MPM extends LagrangianSimulator {
+class MPM extends SPH {
 
   private static _ResourceFormats = {
     particle: {

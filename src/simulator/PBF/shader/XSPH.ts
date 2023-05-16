@@ -4,7 +4,6 @@ import { KernalPoly6, KernalCohesion, KernalSpikyGrad } from './common';
 
 const XSPHShader = /* wgsl */`
 const PI: f32 = ${Math.PI};
-const EPS: f32 = 1e-6;
 const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
 
 override InvDeltaT: f32;
@@ -80,8 +79,9 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
     nListIndex++;
   }
 
-  let etai_norm = select(vec3<f32>(0.0), normalize(etai), length(etai) > EPS);
+  let etai_norm = select(vec3<f32>(0.0), normalize(etai), length(etai) > 0.0);
 
+  let t = XSPHCoef * InvDeltaT * ParticleWeight * VorticityCoef * TensionCoef;
   acceleration[particleIndex] = (
     XSPHCoef * InvDeltaT * ParticleWeight * velocityUpdate +
     VorticityCoef * cross(etai_norm, selfAngularVelocity) +

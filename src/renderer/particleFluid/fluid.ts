@@ -3,7 +3,7 @@ import type { ResourceType, BufferData } from '../../common/resourceFactory';
 import { canvasFormat, device } from '../../controller';
 import { resourceFactory } from '../../common/base';
 import { ResourceFactory } from '../../common/resourceFactory';
-import { LagrangianSimulator } from '../../simulator/LagrangianSimulator';
+import { SPH } from '../../simulator/SPH';
 import { vertexShader, fragmentShader } from './shader';
 
 class ParticleFluid {
@@ -22,7 +22,7 @@ class ParticleFluid {
 
   protected radius: number;
   protected spriteMesh: THREE.Mesh;
-  protected simulator: LagrangianSimulator;
+  protected simulator: SPH;
 
   protected vertexShaderCode: string;
   protected fragmentShaderCode: string;
@@ -36,7 +36,7 @@ class ParticleFluid {
   protected bindGroup: GPUBindGroup;
   protected renderPipeline: GPURenderPipeline;
 
-  constructor(simulator: LagrangianSimulator) {
+  constructor(simulator: SPH) {
 
     this.vertexShaderCode = vertexShader;
     this.fragmentShaderCode = fragmentShader;
