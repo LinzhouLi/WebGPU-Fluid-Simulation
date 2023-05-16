@@ -16,7 +16,6 @@ ${Boundary}
 @group(1) @binding(1) var<storage, read_write> position2: array<vec3<f32>>;
 @group(1) @binding(2) var<storage, read_write> velocity: array<vec3<f32>>;
 @group(1) @binding(3) var<storage, read_write> acceleration: array<vec3<f32>>;
-@group(1) @binding(4) var<uniform> gravity: vec3<f32>;
 
 @compute @workgroup_size(256, 1, 1)
 fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
@@ -24,7 +23,7 @@ fn main( @builtin(global_invocation_id) global_id: vec3<u32> ) {
   if (particleIndex >= options.particleCount) { return; }
 
   // semi implicit euler time integration
-  let vel = velocity[particleIndex] + DeltaT * (gravity + acceleration[particleIndex]);
+  let vel = velocity[particleIndex] + DeltaT * (options.gravity + acceleration[particleIndex]);
   let pos = boundary_rand(position[particleIndex] + DeltaT * vel);
   position2[particleIndex] = pos;
 

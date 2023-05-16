@@ -21,7 +21,7 @@ abstract class SPH {
     ResourceFactory.RegisterFormats(SPH.ResourceFormats);
   }
 
-  static MAX_PARTICAL_NUM = 1 << 16 - 1;
+  static MAX_PARTICLE_NUM = 1 << 17 - 1;
   static MAX_NEIGHBOR_COUNT = 60;
   static KERNEL_RADIUS = 0.025;
   static TIME_STEP = 1 / 300;
@@ -33,15 +33,12 @@ abstract class SPH {
   protected restDensity: number = 1000.0;
   protected particleVolume: number;
   protected particleWeight: number;
-  protected gravity: number = 9.8;
 
   protected particlePositionArray: Array<number>;
-  protected gravityArray: Float32Array;
 
   public position: GPUBuffer;
   protected velocity: GPUBuffer;
   protected acceleration: GPUBuffer;
-  protected gravityBuffer: GPUBuffer;
 
   constructor(particleRadius: number = 0.006, stepCount: number = 25) {
 
@@ -51,17 +48,6 @@ abstract class SPH {
     const particleDiam = 2 * this.particleRadius;
     this.particleVolume = 0.9 * particleDiam * particleDiam * particleDiam;
     this.particleWeight = this.particleVolume * this.restDensity;
-
-    this.gravityBuffer = device.createBuffer({
-      size: 4 * Float32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-    });
-    this.gravityArray = new Float32Array(4);
-    this.gravityArray.set([0, -this.gravity, 0, 0]);
-    device.queue.writeBuffer(
-      this.gravityBuffer, 0,
-      this.gravityArray, 0
-    );
 
     this.particlePositionArray = [];
     this.particleCount = 0;
@@ -84,6 +70,9 @@ abstract class SPH {
     if (this.particlePositionArray.length != this.particleCount * 4) {
       throw new Error('Illegal length of Particle Position Buffer!');
     }
+    if (this.particleCount > SPH.MAX_PARTICLE_NUM) {
+      throw new Error('To Many Particles!');
+    }
 
     const bufferArray = new Float32Array(this.particlePositionArray);
     device.queue.writeBuffer( this.position, 0, bufferArray, 0 );
@@ -96,8 +85,8 @@ abstract class SPH {
   public createBaseStorageData() {
 
     const attributeBufferDesp = {
-      size: 4 * SPH.MAX_PARTICAL_NUM * Float32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+      size: 4 * SPH.MAX_PARTICLE_NUM * Float32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
     } as GPUBufferDescriptor;
 
     this.position = device.createBuffer(attributeBufferDesp);
@@ -121,6 +110,34 @@ abstract class SPH {
           position.set(i, j, k).multiplyScalar(particleDiam).add(min);
           this.particlePositionArray.push(position.x, position.y, position.z, 0);
           count++;
+        }
+      }
+    }
+
+    this.particleCount += count;
+    return count;
+
+  }
+
+  public voxelizeSphere( center: THREE.Vector3, radius: number ) {
+
+    const particleDiam = 2 * this.particleRadius;
+    const voxelDimX = Math.floor(radius / this.particleRadius / 2);
+    const voxelDimY = voxelDimX;
+    const voxelDimZ = voxelDimX;
+    const radius2 = radius * radius;
+
+    let position = new THREE.Vector3();
+    let count = 0;
+    for (let i = -voxelDimX; i <= voxelDimX; i++) {
+      for (let j = -voxelDimY; j <= voxelDimY; j++) {
+        for (let k = -voxelDimZ; k <= voxelDimZ; k++) {
+          position.set(i, j, k).multiplyScalar(particleDiam);
+          if (position.lengthSq() <= radius2) {
+            position.add(center);
+            this.particlePositionArray.push(position.x, position.y, position.z, 0);
+            count++;
+          }
         }
       }
     }
@@ -169,33 +186,9 @@ abstract class SPH {
   }
 
   public enableInteraction() {
-
+    
     document.addEventListener('keydown', event => {
-      if (event.key.toUpperCase() === 'W') {
-        this.gravityArray.set([-this.gravity, 0, 0, 0]);
-        device.queue.writeBuffer( this.gravityBuffer, 0, this.gravityArray, 0 );
-      }
-      else if (event.key.toUpperCase() === 'A') {
-        this.gravityArray.set([0, 0, this.gravity, 0]);
-        device.queue.writeBuffer( this.gravityBuffer, 0, this.gravityArray, 0 );
-      }
-      else if (event.key.toUpperCase() === 'S') {
-        this.gravityArray.set([this.gravity, 0, 0, 0]);
-        device.queue.writeBuffer( this.gravityBuffer, 0, this.gravityArray, 0 );
-      }
-      else if (event.key.toUpperCase() === 'D') {
-        this.gravityArray.set([0, 0, -this.gravity, 0]);
-        device.queue.writeBuffer( this.gravityBuffer, 0, this.gravityArray, 0 );
-      }
-      else if (event.key.toUpperCase() === 'Q') {
-        this.gravityArray.set([0, this.gravity, 0, 0]);
-        device.queue.writeBuffer( this.gravityBuffer, 0, this.gravityArray, 0 );
-      }
-      else if (event.key.toUpperCase() === 'E') {
-        this.gravityArray.set([0, -this.gravity, 0, 0]);
-        device.queue.writeBuffer( this.gravityBuffer, 0, this.gravityArray, 0 );
-      }
-      else if (event.key.toUpperCase() === ' ') {
+      if (event.key.toUpperCase() === ' ') {
         this.pause = !this.pause || !this.position;
       }
     });
@@ -206,6 +199,7 @@ abstract class SPH {
   public abstract initComputePipeline(): Promise<void>;
   public abstract run(commandEncoder: GPUCommandEncoder): void;
   public abstract reset(): void;
+  public abstract setBoundaryData(data: string): void;
   public abstract optionsChange(e: any): void;
   public abstract setConfig(conf: any): void;
   public abstract update(): void;

@@ -53,11 +53,13 @@ class Mesh {
     ResourceFactory.RegisterFormats(Mesh.ResourceFormats);
   }
 
-  constructor(mesh: THREE.Mesh) {
+  constructor() {
 
-    this.mesh = mesh;
     this.vertexShader = VertexShader;
     this.fragmentShader = FragmentShader;
+
+    this.vertexBufferAttributes = ['position', 'normal', 'uv'];
+    this.resourceAttributes = ['transform', 'meshMaterial'];
 
   }
 
@@ -107,14 +109,6 @@ class Mesh {
       }
     };
 
-    if (!!material.map) {
-      this.resourceAttributes.push('baseMap');
-      this.resourceData.baseMap = { 
-        value: await resourceFactory.toBitmap(material.map.image), 
-        flipY: material.map.flipY 
-      };
-    }
-
     this.resource = await resourceFactory.createResource(this.resourceAttributes, this.resourceData);
 
   }
@@ -127,14 +121,15 @@ class Mesh {
 
   }
   
-  protected async initPipeline(globalBindGroupLayout: GPUBindGroupLayout) {
+  public async initPipeline(globalBindGroupLayout: GPUBindGroupLayout) {
 
     const vertexLayout = vertexBufferFactory.createLayout(this.vertexBufferAttributes);
+    const bindgroupLayout = bindGroupFactory.createLayout(this.resourceAttributes);
 
     this.pipeline = await device.createRenderPipelineAsync({
       label: 'Mesh Render Pipeline',
       layout: device.createPipelineLayout({ 
-        bindGroupLayouts: [globalBindGroupLayout, this.bindgroupLayout]
+        bindGroupLayouts: [globalBindGroupLayout, bindgroupLayout]
       }),
       vertex: {
         module: device.createShaderModule({ code: 
@@ -153,7 +148,6 @@ class Mesh {
       primitive: {
         topology: 'triangle-list',
         cullMode: 'back'
-        // cullMode: 'none'
       }, 
       depthStencil: {
         depthWriteEnabled: true,
@@ -164,12 +158,12 @@ class Mesh {
 
   }
 
-  public async initResouce(globalBindGroupLayout: GPUBindGroupLayout) {
+  public async setMesh(mesh: THREE.Mesh) {
 
+    this.mesh = mesh;
     this.initVertexBuffer();
     await this.initGroupResource();
     this.initBindGroup();
-    await this.initPipeline(globalBindGroupLayout);
 
   }
 

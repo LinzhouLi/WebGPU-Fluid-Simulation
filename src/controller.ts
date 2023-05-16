@@ -1,12 +1,11 @@
 import * as THREE from 'three';
 import { GlobalResource } from './renderer/globalResource';
 import { Config } from './common/config';
-import { ParticleFluid } from './renderer/particleFluid/fluid';
-import { FilteredParticleFluid } from './renderer/filteredParticleFluid/fluid'
 import { Skybox } from './renderer/skybox/skybox';
 import { Mesh } from './renderer/mesh/mesh';
 import { SPH } from './simulator/SPH';
 import { PBF } from './simulator/PBF/PBF';
+import { FilteredParticleFluid } from './renderer/filteredParticleFluid/fluid';
 import { loader } from './common/loader';
 
 
@@ -75,6 +74,11 @@ THREE.Frustum.prototype.setFromProjectionMatrix = function ( m ) {
 };
 
 
+    // this.simulator.voxelizeCube(
+    //   new THREE.Vector3(0.15, 0.35, 0.15),
+    //   new THREE.Vector3(0.65, 0.85, 0.65)
+    // );
+
 let device: GPUDevice;
 let canvasFormat: GPUTextureFormat;
 let canvasSize: { width: number, height: number };
@@ -95,9 +99,13 @@ class Controller {
 
   private skybox: Skybox;
   private mesh: Mesh;
-  private particles: ParticleFluid;
-  private fluidRender: FilteredParticleFluid;
   private simulator: SPH;
+  private fluidRender: FilteredParticleFluid;
+
+  private sky_cube_tex: THREE.CubeTexture;
+  private bunny_mesh: THREE.Mesh;
+  private torus_mesh: THREE.Mesh;
+  private torus_boundary: string;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -109,7 +117,6 @@ class Controller {
     Mesh.RegisterResourceFormats();
     FilteredParticleFluid.RegisterResourceFormats();
     SPH.RegisterResourceFormats();
-    // MPM._RegisterResourceFormats();
   }
 
   public async initWebGPU() {
@@ -148,28 +155,102 @@ class Controller {
   }
 
   private setSceneConfig(config: {
+    scene: number,
     skybox: boolean,
-    mesh: boolean,
     fluid: boolean
   }) {
+
     this.ifSkybox = config.skybox;
-    this.ifMesh = config.mesh;
     this.ifFluid = config.fluid;
+
+    this.simulator.reset();
+    this.simulator.stop();
+
+    if (config.scene == 0) { // Bunny Drop
+      this.simulator.voxelizeMesh(this.bunny_mesh);
+      this.ifMesh = false;
+    }
+    else if (config.scene == 1) { // Cube Drop
+      this.simulator.voxelizeCube(
+        new THREE.Vector3(0.15, 0.35, 0.15),
+        new THREE.Vector3(0.65, 0.85, 0.65)
+      );
+      this.ifMesh = false;
+    }
+    else if (config.scene == 2) { // Water Droplet
+      this.simulator.voxelizeCube(
+        new THREE.Vector3(0.005, 0.005, 0.005),
+        new THREE.Vector3(0.995, 0.08, 0.995)
+      );
+      this.simulator.voxelizeSphere(
+        new THREE.Vector3(0.5, 0.6, 0.5),
+        0.12
+      );
+      this.ifMesh = false;
+    }
+    else if (config.scene == 3) { // Double Dam Break
+      this.simulator.voxelizeCube(
+        new THREE.Vector3(0.005, 0.005, 0.005),
+        new THREE.Vector3(0.3, 0.6, 0.3)
+      );
+      this.simulator.voxelizeCube(
+        new THREE.Vector3(0.7, 0.005, 0.7),
+        new THREE.Vector3(0.995, 0.6, 0.995)
+      );
+      this.ifMesh = false;
+    }
+    else if (config.scene == 4) { // Boundary
+      this.simulator.voxelizeCube(
+        new THREE.Vector3(0.15, 0.35, 0.15),
+        new THREE.Vector3(0.65, 0.85, 0.65)
+      );
+      this.simulator.setBoundaryData(this.torus_boundary);
+      this.mesh.setMesh(this.torus_mesh);
+      this.ifMesh = true;
+    }
+
+    this.simulator.setParticlePosition();
+
+  }
+
+  private async loadData() {
+
+    this.sky_cube_tex = await loader.loadCubeTexture([
+      "skybox/right.jpg", "skybox/left.jpg", // px nx
+      "skybox/top.jpg", "skybox/bottom.jpg", // py ny
+      "skybox/front.jpg", "skybox/back.jpg"  // pz nz
+    ]);
+
+    const glb = await loader.loadGLTF("model/bunny.glb", true);
+    this.bunny_mesh = glb.scene.children[0] as THREE.Mesh;
+    this.bunny_mesh.scale.set(0.4, 0.4, 0.4);
+    this.bunny_mesh.position.set(0.5, 0.3, 0.5);
+    this.bunny_mesh.updateMatrixWorld();
+
+    const geometry = new THREE.TorusGeometry( 1.0, 0.4, 16, 60 );
+    const material = new THREE.MeshPhongMaterial( { color: 0xffff00 } );
+    this.torus_mesh = new THREE.Mesh( geometry, material );
+    this.torus_mesh.position.set(0.5, 0.2, 0.5);
+    this.torus_mesh.scale.set(0.2, 0.2, 0.2);
+    this.torus_mesh.rotation.set(Math.PI / 2, 0, 0.0);
+    this.torus_mesh.updateMatrixWorld();
+
+    this.torus_boundary =  await loader.loadFile("model/torus.cdm") as string;
+
   }
 
   public async initScene(camera: THREE.PerspectiveCamera, light: THREE.DirectionalLight) {
     
     this.RegisterResourceFormats();
 
-    this.config.initSceneOptions((e) => this.setSceneConfig(e.object));
-    this.setSceneConfig(this.config.scnenOptions);
+    await this.loadData();
 
     // global resource
     this.camera = camera;
     this.camera.updateMatrixWorld();
     this.camera.updateProjectionMatrix(); 
     this.globalResource = new GlobalResource(camera, light);
-    await this.globalResource.initResource();
+    await this.globalResource.initResource(this.sky_cube_tex);
     this.renderDepthView = (this.globalResource.resource.renderDepthMap as GPUTexture).createView();
 
     // sky box renderer
@@ -177,41 +258,24 @@ class Controller {
     await this.skybox.initResouce(this.globalResource.bindgroupLayout);
 
     // mesh
-    // const obj = await loader.loadOBJ("model/torus.obj");
-    const geometry = new THREE.TorusGeometry( 1.0, 0.4, 16, 60 );
-    const material = new THREE.MeshPhongMaterial( { color: 0xffff00 } );
-    const torus = new THREE.Mesh( geometry, material );
-    torus.position.set(0.5, 0.2, 0.5);
-    torus.scale.set(0.2, 0.2, 0.2);
-    torus.rotation.set(Math.PI / 2, 0, 0.0);
-    torus.updateMatrixWorld();
-    this.mesh = new Mesh(torus);
-    await this.mesh.initResouce(this.globalResource.bindgroupLayout);
+    this.mesh = new Mesh();
+    await this.mesh.initPipeline(this.globalResource.bindgroupLayout);
 
     // PBF simulator
-    const glb = await loader.loadGLTF("model/bunny.glb", true);
-    const bunny_mesh = glb.scene.children[0] as THREE.Mesh;
-    bunny_mesh.scale.set(0.4, 0.4, 0.4);
-    bunny_mesh.position.set(0.5, 0.3, 0.5);
-
     this.simulator = new PBF();
-    this.simulator.voxelizeMesh(bunny_mesh);
-    // this.simulator.voxelizeCube(
-    //   new THREE.Vector3(0.15, 0.35, 0.15),
-    //   new THREE.Vector3(0.65, 0.85, 0.65)
-    // );
     await this.simulator.initResource();
     this.simulator.enableInteraction();
-    this.simulator.setParticlePosition();
     this.config.initSimulationOptions((e) => this.simulator.optionsChange(e));
     this.simulator.setConfig(this.config.simulationOptions);
-    console.log(this.simulator.particleCount);
 
     // fluid renderer
     this.fluidRender = new FilteredParticleFluid(this.simulator, this.camera);
     await this.fluidRender.initResource(this.globalResource.resource);
     this.config.initRenderingOptions((e) => this.fluidRender.optionsChange(e));
     this.fluidRender.setConfig(this.config.renderingOptions);
+
+    this.config.initSceneOptions((e) => this.setSceneConfig(e.object));
+    this.setSceneConfig(this.config.scnenOptions);
 
   }
 

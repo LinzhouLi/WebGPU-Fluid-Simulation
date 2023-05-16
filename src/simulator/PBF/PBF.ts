@@ -84,7 +84,14 @@ class PBF extends PBFConfig {
     this.boundaryModel.reset(ce);
 
     device.queue.submit([ ce.finish() ]);
+
+    this.ifBoundary = false;
     
+  }
+
+  public setBoundaryData(data: string) {
+    this.boundaryModel.setData(data);
+    this.ifBoundary = true;
   }
 
   public computeParticleDensity(particleIndex: number) {
@@ -114,8 +121,8 @@ class PBF extends PBFConfig {
     // create GPU Buffers
     // vec3/vec4 particle attribute buffer
     let attributeBufferDesp = {
-      size: 4 * SPH.MAX_PARTICAL_NUM * Float32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+      size: 4 * SPH.MAX_PARTICLE_NUM * Float32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
     } as GPUBufferDescriptor;
     this.position2 = device.createBuffer(attributeBufferDesp);
     this.boundaryData = device.createBuffer(attributeBufferDesp);
@@ -126,22 +133,22 @@ class PBF extends PBFConfig {
 
     // f32 particle attribute buffer
     attributeBufferDesp = {
-      size: SPH.MAX_PARTICAL_NUM * Float32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+      size: SPH.MAX_PARTICLE_NUM * Float32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
     };
     this.lambda = device.createBuffer(attributeBufferDesp);
 
     if (PBF.debug) {
       this.tempBuffer = device.createBuffer({
-        size: SPH.MAX_PARTICAL_NUM * Float32Array.BYTES_PER_ELEMENT,
+        size: SPH.MAX_PARTICLE_NUM * Float32Array.BYTES_PER_ELEMENT,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
       });
       this.debugBuffer1 = device.createBuffer({
-        size: 4 * SPH.MAX_PARTICAL_NUM * Float32Array.BYTES_PER_ELEMENT,
+        size: 4 * SPH.MAX_PARTICLE_NUM * Float32Array.BYTES_PER_ELEMENT,
         usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
       });
       this.debugBuffer2 = device.createBuffer({
-        size: 4 * SPH.MAX_PARTICAL_NUM * Float32Array.BYTES_PER_ELEMENT,
+        size: 4 * SPH.MAX_PARTICLE_NUM * Float32Array.BYTES_PER_ELEMENT,
         usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
       });
     }
@@ -169,8 +176,7 @@ class PBF extends PBFConfig {
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
       ]
     });
 
@@ -223,8 +229,7 @@ class PBF extends PBFConfig {
         { binding: 0, resource: { buffer: this.position } },
         { binding: 1, resource: { buffer: this.position2 } },
         { binding: 2, resource: { buffer: this.velocity } },
-        { binding: 3, resource: { buffer: this.acceleration } },
-        { binding: 4, resource: { buffer: this.gravityBuffer } },
+        { binding: 3, resource: { buffer: this.acceleration } }
       ]
     });
 
@@ -263,8 +268,7 @@ class PBF extends PBFConfig {
 
     // boundary model
     this.boundaryModel = new BoundaryModel();
-    const data = await loader.loadFile(this.boundaryFilePath) as string;
-    await this.boundaryModel.initResource(data);
+    await this.boundaryModel.initResource();
 
     // neighbor search
     this.neighborSearch = new NeighborSearch(this);
@@ -393,14 +397,14 @@ class PBF extends PBFConfig {
   }
 
   public run(commandEncoder: GPUCommandEncoder) {
-
+    
     if (this.pause) return;
-
+    
     this.neighborSearch.clearBuffer(commandEncoder);
     
     const passEncoder = commandEncoder.beginComputePass();
     const workgroupCount = Math.ceil(this.particleCount / 256);
-
+    
     passEncoder.setBindGroup(0, this.configBindGroup);
 
     passEncoder.setBindGroup(1, this.integrationBindGroup);
@@ -412,8 +416,10 @@ class PBF extends PBFConfig {
     passEncoder.setBindGroup(1, this.neighborBindGroup);
     passEncoder.setBindGroup(2, this.constrainBindGroup);
     for (let i = 0; i < this.constrainIterationCount; i++) {
-      passEncoder.setPipeline(this.boundaryVolumePipeline);
-      passEncoder.dispatchWorkgroups(workgroupCount);
+      if (this.ifBoundary) {
+        passEncoder.setPipeline(this.boundaryVolumePipeline);
+        passEncoder.dispatchWorkgroups(workgroupCount);
+      }
 
       passEncoder.setPipeline(this.lambdaCalculationPipeline);
       passEncoder.dispatchWorkgroups(workgroupCount);

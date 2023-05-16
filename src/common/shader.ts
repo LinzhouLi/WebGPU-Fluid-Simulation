@@ -52,7 +52,8 @@ struct SimulationOptions {
   particleCount: u32,
   XSPHCoef: f32,
   vorticityCoef: f32,
-  tensionCoef: f32
+  tensionCoef: f32,
+  gravity: vec3<f32>
 }
 `;
 

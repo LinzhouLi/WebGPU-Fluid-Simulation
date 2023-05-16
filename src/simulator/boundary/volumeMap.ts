@@ -3,8 +3,12 @@ import { DebugShader } from './discreteFieldShader'
 
 class BoundaryModel {
 
-  public resolution: number[];
-  public fieldByteLength: number;
+  public static RESOLUTION = [20, 20, 20];
+  public static FIELD_LENGTH = 
+    (BoundaryModel.RESOLUTION[0] + 1) * (BoundaryModel.RESOLUTION[1] + 1) * (BoundaryModel.RESOLUTION[2] + 1) +
+    (BoundaryModel.RESOLUTION[0] * 2) * (BoundaryModel.RESOLUTION[1] + 1) * (BoundaryModel.RESOLUTION[2] + 1) +
+    (BoundaryModel.RESOLUTION[0] + 1) * (BoundaryModel.RESOLUTION[1] * 2) * (BoundaryModel.RESOLUTION[2] + 1) +
+    (BoundaryModel.RESOLUTION[0] + 1) * (BoundaryModel.RESOLUTION[1] + 1) * (BoundaryModel.RESOLUTION[2] * 2);
 
   public field: GPUBuffer;
 
@@ -16,35 +20,32 @@ class BoundaryModel {
 
   }
 
-  private createStorageData(
-    sdf_data: Float32Array,
-    volumeMap_data: Float32Array
-  ) {
-
-    // discrete field buffer
-    this.fieldByteLength = sdf_data.length * Float32Array.BYTES_PER_ELEMENT;
-    this.field = device.createBuffer({
-      size: 2 * this.fieldByteLength,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE
-    });
-    device.queue.writeBuffer( this.field, 0, sdf_data, 0 );
-    device.queue.writeBuffer( this.field, this.fieldByteLength, volumeMap_data, 0 );
-
-  }
-
-  public async initResource(data: string) {
+  public setData(data: string) {
 
     const data_split = data.split('\n');
-    this.resolution = data_split[0].split(' ').map(parseFloat);
-
+    const resolution = data_split[0].split(' ').map(parseFloat);
+    
     const sdf_data = new Float32Array( data_split[2].split(' ').map(parseFloat).slice(0, -1) );
     const volumeMap_data = new Float32Array( data_split[4].split(' ').map(parseFloat).slice(0, -1) );
 
-    if (sdf_data.length != volumeMap_data.length) {
+    if (sdf_data.length != BoundaryModel.FIELD_LENGTH || volumeMap_data.length != BoundaryModel.FIELD_LENGTH) {
       throw new Error('Invalid Boundary Model File!');
     }
 
-    this.createStorageData(sdf_data, volumeMap_data);
+    const fieldByteLength = BoundaryModel.FIELD_LENGTH * Float32Array.BYTES_PER_ELEMENT;
+    device.queue.writeBuffer( this.field, 0, sdf_data, 0 );
+    device.queue.writeBuffer( this.field, fieldByteLength, volumeMap_data, 0 );
+
+  }
+
+  public async initResource() {
+
+    // discrete field buffer
+    const fieldByteLength = BoundaryModel.FIELD_LENGTH * Float32Array.BYTES_PER_ELEMENT;
+    this.field = device.createBuffer({
+      size: 2 * fieldByteLength,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE
+    });
 
   }
 

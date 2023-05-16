@@ -1,11 +1,12 @@
 import { ShaderStruct } from '../../../common/shader';
 import { PBFConfig } from '../PBFConfig';
+import { BoundaryModel } from '../../boundary/volumeMap';
 import { DiscreteField, ShapeFunction, Interpolation } from '../../boundary/discreteFieldShader';
 
 
 const BoundaryVolumeShader = /* wgsl */`
 const KernelRadius: f32 = ${PBFConfig.KERNEL_RADIUS};
-const GridSize: vec3<f32> = vec3<f32>(${PBFConfig.BOUNDARY_GRID[0]}, ${PBFConfig.BOUNDARY_GRID[1]}, ${PBFConfig.BOUNDARY_GRID[2]});
+const GridSize: vec3<f32> = vec3<f32>(${BoundaryModel.RESOLUTION[0]}, ${BoundaryModel.RESOLUTION[1]}, ${BoundaryModel.RESOLUTION[2]});
 const GridSizeU: vec3<u32> = vec3<u32>(GridSize);
 const GridSpaceSize: vec3<f32> = 1.0 / GridSize;
 

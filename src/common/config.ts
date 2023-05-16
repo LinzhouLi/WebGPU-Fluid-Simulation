@@ -5,8 +5,8 @@ class Config {
   private gui: GUI;
 
   public scnenOptions = {
+    scene: 0,
     skybox: true,
-    mesh: true,
     fluid: true
   }
 
@@ -21,7 +21,8 @@ class Config {
   public simulationOptions = {
     XSPH: 0.01,
     vorticity: 0.1,
-    surfaceTension: 0.5
+    surfaceTension: 0.5,
+    gravity: 9.8
   };
 
   constructor() {
@@ -31,8 +32,10 @@ class Config {
   public initSceneOptions(onChangeFunc: (msg) => void) {
 
     const sceneOptionGUI = this.gui.addFolder('Scene Options');
+    sceneOptionGUI.add(this.scnenOptions, 'scene',
+      { 'Bunny Drop': 0, 'Cube Drop': 1, 'Water Droplet': 2, 'Double Dam Break': 3, 'Boundary': 4 }
+    );
     sceneOptionGUI.add(this.scnenOptions, 'skybox');
-    sceneOptionGUI.add(this.scnenOptions, 'mesh');
     sceneOptionGUI.add(this.scnenOptions, 'fluid');
     sceneOptionGUI.onFinishChange(onChangeFunc);
 
@@ -43,7 +46,7 @@ class Config {
     const renderingOptionGUI = this.gui.addFolder('Fluid Rendering Options');
     renderingOptionGUI.add(this.renderingOptions, 'filterSize', 0, 32).step(2);
     renderingOptionGUI.add(this.renderingOptions, 'mode', 
-      { PBR: 0, 'PBR(No Refraction)': 1, Diffuse: 2, Normal: 3, Depth: 4, Thickness: 5 }
+      { 'PBR': 0, 'PBR(No Refraction)': 1, 'Diffuse': 2, 'Normal': 3, 'Depth': 4, 'Thickness': 5 }
     );
     renderingOptionGUI.add(this.renderingOptions, 'particleRadius', 0.005, 0.05);
     renderingOptionGUI.add(this.renderingOptions, 'particleTickness', 0, 1.0);
@@ -58,6 +61,7 @@ class Config {
     simulationOptionGUI.add(this.simulationOptions, 'XSPH', 0, 0.1);
     simulationOptionGUI.add(this.simulationOptions, 'vorticity', 0, 1);
     simulationOptionGUI.add(this.simulationOptions, 'surfaceTension', 0, 1);
+    simulationOptionGUI.add(this.simulationOptions, 'gravity', 0, 10);
     simulationOptionGUI.onFinishChange(onChangeFunc);
     
   }

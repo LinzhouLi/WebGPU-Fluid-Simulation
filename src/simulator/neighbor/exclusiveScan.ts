@@ -54,7 +54,7 @@ class ExclusiveScan {
     // temp array buffer
     const tempBufferDesp = {
       size: ExclusiveScan.ARRAY_ALIGNMENT * Uint32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
     } as GPUBufferDescriptor;
     this.tempSrcArrayBuffer = device.createBuffer(tempBufferDesp);
     this.tempDestArrayBuffer = device.createBuffer(tempBufferDesp);

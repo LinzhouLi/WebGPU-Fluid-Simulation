@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { loader } from '../common/loader';
 import { device, canvasSize, canvasFormat } from '../controller';
 import type { TypedArray } from '../common/base';
 import { resourceFactory, bindGroupFactory, EnvMapResolution } from '../common/base';
@@ -111,17 +110,11 @@ class GlobalResource {
 
   }
 
-  public async initResource() {
+  public async initResource(background: THREE.CubeTexture) {
 
     const light = this.light as THREE.DirectionalLight;
     let lightDir = light.position.clone().sub(light.target.position).normalize();
     let lightColor = new THREE.Vector3(...this.light.color.toArray()).setScalar(this.light.intensity);
-
-    let background = await loader.loadCubeTexture([
-      "skybox/right.jpg", "skybox/left.jpg", // px nx
-      "skybox/top.jpg", "skybox/bottom.jpg", // py ny
-      "skybox/front.jpg", "skybox/back.jpg"  // pz nz
-    ]);
     
     this.resourceData = {
       camera: { // update per frame

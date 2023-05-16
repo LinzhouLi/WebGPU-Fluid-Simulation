@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { device } from '../../controller';
 import { SPH } from '../SPH';
-import { PBFConfig } from '../PBF/PBFConfig';
 import { ExclusiveScan } from './exclusiveScan';
 import { ParticleInsertShader, CountingSortShader, NeighborCountShader, NeighborListShader } from './neighborShader';
 
@@ -62,6 +61,8 @@ class NeighborSearch {
 
   public reset(commandEncoder: GPUCommandEncoder) {
 
+    commandEncoder.clearBuffer(this.neighborList);
+    commandEncoder.clearBuffer(this.neighborOffset);
     commandEncoder.clearBuffer(this.neighborCount);
     commandEncoder.clearBuffer(this.cellParticleCount);
     commandEncoder.clearBuffer(this.cellOffset);
@@ -77,23 +78,23 @@ class NeighborSearch {
 
     // create GPU Buffers
     // neighbor list buffer
-    let bufferSize = SPH.MAX_NEIGHBOR_COUNT * SPH.MAX_PARTICAL_NUM * Uint32Array.BYTES_PER_ELEMENT
-    this.neighborList = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
+    let bufferSize = SPH.MAX_NEIGHBOR_COUNT * SPH.MAX_PARTICLE_NUM * Uint32Array.BYTES_PER_ELEMENT
+    this.neighborList = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 
     // neighbor count/offset buffer
-    bufferSize = Math.ceil(SPH.MAX_PARTICAL_NUM / ExclusiveScan.ARRAY_ALIGNMENT) * ExclusiveScan.ARRAY_ALIGNMENT * Float32Array.BYTES_PER_ELEMENT;
+    bufferSize = Math.ceil(SPH.MAX_PARTICLE_NUM / ExclusiveScan.ARRAY_ALIGNMENT) * ExclusiveScan.ARRAY_ALIGNMENT * Float32Array.BYTES_PER_ELEMENT;
     this.neighborCount = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
-    this.neighborOffset = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
+    this.neighborOffset = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 
     // grid cell count/offset buffer
     bufferSize = NeighborSearch.GRID_COUNT_ALIGNMENT * Uint32Array.BYTES_PER_ELEMENT;
     this.cellParticleCount = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
-    this.cellOffset = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE });
+    this.cellOffset = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 
     // particle index buffer
-    bufferSize = SPH.MAX_PARTICAL_NUM * Uint32Array.BYTES_PER_ELEMENT;
-    this.particleSortIndex = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE });
-    this.particleSortIndexCopy = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE });
+    bufferSize = SPH.MAX_PARTICLE_NUM * Uint32Array.BYTES_PER_ELEMENT;
+    this.particleSortIndex = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+    this.particleSortIndexCopy = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 
     // grid info buffer
     bufferSize = 2 * 4 * Uint32Array.BYTES_PER_ELEMENT;
@@ -252,7 +253,7 @@ class NeighborSearch {
     this.createBindGroup();
     await this.createPipeline(groupLayout);
 
-    const particleCountAlignment = Math.ceil(SPH.MAX_PARTICAL_NUM / ExclusiveScan.ARRAY_ALIGNMENT) * ExclusiveScan.ARRAY_ALIGNMENT;
+    const particleCountAlignment = Math.ceil(SPH.MAX_PARTICLE_NUM / ExclusiveScan.ARRAY_ALIGNMENT) * ExclusiveScan.ARRAY_ALIGNMENT;
     this.cellScan = new ExclusiveScan(this.cellParticleCount, this.cellOffset, NeighborSearch.GRID_COUNT_ALIGNMENT);
     this.particleScan = new ExclusiveScan(this.neighborCount, this.neighborOffset, particleCountAlignment);
     await this.cellScan.initResource(groupLayout);
