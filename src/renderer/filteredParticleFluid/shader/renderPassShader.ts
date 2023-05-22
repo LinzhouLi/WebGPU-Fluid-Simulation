@@ -148,6 +148,10 @@ fn main(input: FragInput) -> FragOutput {
       color = vec4<f32>(vec3<f32>(fluidVolume), 1.0);
       break;
     }
+    case 6: {
+      color = vec4<f32>(vec3<f32>(positionEye), 1.0);
+      break;
+    }
     case 0, 1, default: {
       color = shading(normalEye, positionEye, fluidVolume);
     }

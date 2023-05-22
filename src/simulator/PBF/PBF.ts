@@ -1,9 +1,8 @@
-import { device } from '../../controller';
+import { device, timeStampQuerySet } from '../../controller';
 import { SPH } from '../SPH';
 import { PBFConfig } from './PBFConfig';
 import { NeighborSearch } from '../neighbor/neighborSearch';
 import { BoundaryModel } from '../boundary/volumeMap';
-import { loader } from '../../common/loader';
 
 // shaders
 import { TimeIntegrationShader } from './shader/timeIntegration';
@@ -402,7 +401,11 @@ class PBF extends PBFConfig {
     
     this.neighborSearch.clearBuffer(commandEncoder);
     
-    const passEncoder = commandEncoder.beginComputePass();
+    const passEncoder = commandEncoder.beginComputePass({
+      timestampWrites: {
+        querySet: timeStampQuerySet
+      }
+    });
     const workgroupCount = Math.ceil(this.particleCount / 256);
     
     passEncoder.setBindGroup(0, this.configBindGroup);
@@ -448,6 +451,68 @@ class PBF extends PBFConfig {
   
   }
 
+  public runTimestamp(commandEncoder: GPUCommandEncoder) {
+    
+    const workgroupCount = Math.ceil(this.particleCount / 256);
+    
+    this.neighborSearch.clearBuffer(commandEncoder);
+    
+    const passEncoder1 = commandEncoder.beginComputePass();
+    passEncoder1.setBindGroup(0, this.configBindGroup);
+    passEncoder1.setBindGroup(1, this.integrationBindGroup);
+    passEncoder1.setPipeline(this.forceApplyPipeline);
+    passEncoder1.dispatchWorkgroups(workgroupCount);
+    passEncoder1.end();
+
+    commandEncoder.writeTimestamp(timeStampQuerySet, 1);
+
+    const passEncoder2 = commandEncoder.beginComputePass();
+    passEncoder2.setBindGroup(0, this.configBindGroup);
+    this.neighborSearch.execute(passEncoder2);
+    passEncoder2.end();
+
+    commandEncoder.writeTimestamp(timeStampQuerySet, 2);
+
+    const passEncoder3 = commandEncoder.beginComputePass();
+    passEncoder3.setBindGroup(0, this.configBindGroup);
+    passEncoder3.setBindGroup(1, this.neighborBindGroup);
+    passEncoder3.setBindGroup(2, this.constrainBindGroup);
+    for (let i = 0; i < this.constrainIterationCount; i++) {
+      if (this.ifBoundary) {
+        passEncoder3.setPipeline(this.boundaryVolumePipeline);
+        passEncoder3.dispatchWorkgroups(workgroupCount);
+      }
+      passEncoder3.setPipeline(this.lambdaCalculationPipeline);
+      passEncoder3.dispatchWorkgroups(workgroupCount);
+
+      passEncoder3.setPipeline(this.constrainSolvePipeline);
+      passEncoder3.dispatchWorkgroups(workgroupCount);
+
+      passEncoder3.setPipeline(this.constrainApplyPipeline);
+      passEncoder3.dispatchWorkgroups(workgroupCount);
+    }
+    // passEncoder.setPipeline(this.boundaryVolumePipeline);
+    // passEncoder.dispatchWorkgroups(workgroupCount);
+    passEncoder3.end();
+
+    commandEncoder.writeTimestamp(timeStampQuerySet, 3);
+
+    const passEncoder4 = commandEncoder.beginComputePass();
+    passEncoder4.setBindGroup(0, this.configBindGroup);
+    passEncoder4.setBindGroup(1, this.neighborBindGroup);
+    passEncoder4.setBindGroup(2, this.nonPressureBindGroup);
+    passEncoder4.setPipeline(this.attributeUpdatePipeline);
+    passEncoder4.dispatchWorkgroups(workgroupCount);
+    passEncoder4.setPipeline(this.vortcityConfinementPipeline);
+    passEncoder4.dispatchWorkgroups(workgroupCount);
+    passEncoder4.setPipeline(this.XSPHPipeline);
+    passEncoder4.dispatchWorkgroups(workgroupCount);
+    passEncoder4.end();
+
+    commandEncoder.writeTimestamp(timeStampQuerySet, 4);
+  
+  }
+
   public update() { }
 
   public async debug() {
@@ -457,7 +522,7 @@ class PBF extends PBFConfig {
     if (PBF.debug) {
       const ce = device.createCommandEncoder();
 
-      this.run(ce);
+      // this.run(ce);
 
       ce.copyBufferToBuffer(
         this.acceleration, 0,

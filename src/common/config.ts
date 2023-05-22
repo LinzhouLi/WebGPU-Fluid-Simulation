@@ -19,6 +19,7 @@ class Config {
   };
 
   public simulationOptions = {
+    iteration: 5,
     XSPH: 0.01,
     vorticity: 0.1,
     surfaceTension: 0.5,
@@ -46,7 +47,7 @@ class Config {
     const renderingOptionGUI = this.gui.addFolder('Fluid Rendering Options');
     renderingOptionGUI.add(this.renderingOptions, 'filterSize', 0, 32).step(2);
     renderingOptionGUI.add(this.renderingOptions, 'mode', 
-      { 'PBR': 0, 'PBR(No Refraction)': 1, 'Diffuse': 2, 'Normal': 3, 'Depth': 4, 'Thickness': 5 }
+      { 'PBR': 0, 'PBR(No Refraction)': 1, 'Diffuse': 2, 'Normal': 3, 'Depth': 4, 'Thickness': 5, 'Positon': 6 }
     );
     renderingOptionGUI.add(this.renderingOptions, 'particleRadius', 0.005, 0.05);
     renderingOptionGUI.add(this.renderingOptions, 'particleTickness', 0, 1.0);
@@ -58,6 +59,7 @@ class Config {
   public initSimulationOptions(onChangeFunc: (msg) => void) {
 
     const simulationOptionGUI = this.gui.addFolder('Fluid Simulation Options');
+    simulationOptionGUI.add(this.simulationOptions, 'iteration', 1, 10).step(5);
     simulationOptionGUI.add(this.simulationOptions, 'XSPH', 0, 0.1);
     simulationOptionGUI.add(this.simulationOptions, 'vorticity', 0, 1);
     simulationOptionGUI.add(this.simulationOptions, 'surfaceTension', 0, 1);

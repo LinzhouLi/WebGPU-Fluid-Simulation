@@ -4,7 +4,7 @@ import { device } from '../../controller';
 abstract class PBFConfig extends SPH {
 
   protected ifBoundary: boolean;
-  protected constrainIterationCount = 5;
+  protected constrainIterationCount;
   protected lambdaEPS = 1e-6;
   protected scorrCoefK = 5e-5;
   protected scorrCoefDq = 0.1; // [0.1, 0.3]
@@ -29,12 +29,14 @@ abstract class PBFConfig extends SPH {
   }
 
   public setConfig(config: {
+    iteration: number,
     XSPH: number,
     vorticity: number,
     surfaceTension: number,
     gravity: number
   }) {
 
+    this.constrainIterationCount = config.iteration;
     this.optionsBufferView.setFloat32(4, config.XSPH, true);
     this.optionsBufferView.setFloat32(8, config.vorticity, true);
     this.optionsBufferView.setFloat32(12, config.surfaceTension, true);
@@ -66,6 +68,7 @@ abstract class PBFConfig extends SPH {
   public abstract initResource(): Promise<void>;
   public abstract initComputePipeline(): Promise<void>;
   public abstract run(commandEncoder: GPUCommandEncoder): void;
+  public abstract runTimestamp(commandEncoder: GPUCommandEncoder): void;
   public abstract update(): void;
   public abstract debug(): Promise<void>;
 

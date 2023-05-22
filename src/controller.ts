@@ -74,14 +74,10 @@ THREE.Frustum.prototype.setFromProjectionMatrix = function ( m ) {
 };
 
 
-    // this.simulator.voxelizeCube(
-    //   new THREE.Vector3(0.15, 0.35, 0.15),
-    //   new THREE.Vector3(0.65, 0.85, 0.65)
-    // );
-
 let device: GPUDevice;
 let canvasFormat: GPUTextureFormat;
 let canvasSize: { width: number, height: number };
+let timeStampQuerySet: GPUQuerySet;
 
 class Controller {
 
@@ -107,6 +103,11 @@ class Controller {
   private torus_mesh: THREE.Mesh;
   private torus_boundary: string;
 
+  private timeStampSize = 9;
+  private timeStampBuffer: GPUBuffer;
+  private timeStampReadBuffer: GPUBuffer;
+  private timeStampReadArray: Array<number>;
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.config = new Config();
@@ -131,8 +132,9 @@ class Controller {
     adapter.features.forEach(feature => console.log(`Support feature: ${feature}`));
     
     // device
-    device = await adapter.requestDevice({
-      requiredFeatures: [] // 'float32-filterable'
+    device = await adapter.requestDevice({ // @ts-ignore
+      requiredFeatures: ['timestamp-query', 'timestamp-query-inside-passes'] // 'float32-filterable'
+      // requiredFeatures: []
     }); // "shader-f16" feature is not supported on my laptop
     console.log(device)
     // context
@@ -239,11 +241,28 @@ class Controller {
 
   }
 
+  public initTimeStamp() {
+
+    timeStampQuerySet = device.createQuerySet({ type: 'timestamp', count: this.timeStampSize });
+    this.timeStampReadArray = new Array(this.timeStampSize - 1).fill(0);
+    this.timeStampBuffer = device.createBuffer({
+      size: this.timeStampSize * 8,
+      usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    });
+    this.timeStampReadBuffer = device.createBuffer({
+      size: this.timeStampSize * 8,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+    })
+
+  }
+
   public async initScene(camera: THREE.PerspectiveCamera, light: THREE.DirectionalLight) {
     
     this.RegisterResourceFormats();
 
     await this.loadData();
+
+    this.initTimeStamp();
 
     // global resource
     this.camera = camera;
@@ -282,7 +301,7 @@ class Controller {
   public run() {
 
 		const commandEncoder = device.createCommandEncoder();
-    
+
     // simulate
     for (let i = 0; i < this.simulator.stepCount; i++) // this.simulator.stepCount
       this.simulator.run(commandEncoder);
@@ -315,6 +334,65 @@ class Controller {
 
   }
 
+  public async runTimestamp() {
+
+		const commandEncoder = device.createCommandEncoder();
+    commandEncoder.writeTimestamp(timeStampQuerySet, 0);
+
+    // simulate
+    for (let i = 0; i < this.simulator.stepCount; i++) // this.simulator.stepCount
+      this.simulator.runTimestamp(commandEncoder);
+
+		// render
+    const ctxTextureView = this.context.getCurrentTexture().createView();
+    const renderPassEncoder = commandEncoder.beginRenderPass({
+      colorAttachments: [{
+        view: ctxTextureView,
+        clearValue: { r: 1, g: 1, b: 1, a: 1.0 },
+        loadOp: 'clear',
+        storeOp: 'store'
+      }],
+      depthStencilAttachment: {
+        view: this.renderDepthView,
+        depthClearValue: 0.0,
+        depthLoadOp: 'clear',
+        depthStoreOp: 'store',
+      }
+    });
+    this.globalResource.setResource(renderPassEncoder);
+    if(this.ifMesh) this.mesh.render(renderPassEncoder);
+    if(this.ifSkybox) this.skybox.render(renderPassEncoder);
+    renderPassEncoder.end();
+
+    commandEncoder.writeTimestamp(timeStampQuerySet, 5);
+
+    if (this.ifFluid) this.fluidRender.renderTimestamp(commandEncoder, ctxTextureView);
+
+    commandEncoder.resolveQuerySet(
+      timeStampQuerySet, 0, this.timeStampSize,
+      this.timeStampBuffer, 0
+    );
+    commandEncoder.copyBufferToBuffer(
+      this.timeStampBuffer, 0,
+      this.timeStampReadBuffer, 0,
+      this.timeStampBuffer.size
+    );
+
+		const commandBuffer = commandEncoder.finish();
+    device.queue.submit([commandBuffer]);
+
+    await device.queue.onSubmittedWorkDone();
+    await this.timeStampReadBuffer.mapAsync(GPUMapMode.READ);
+    const buffer = this.timeStampReadBuffer.getMappedRange(0, this.timeStampReadBuffer.size);
+    const array = new BigUint64Array(buffer);
+    for (let i = 1; i < this.timeStampSize; i++) {
+      this.timeStampReadArray[i-1] = Number(array[i] - array[i-1]) * 1e-3;
+    }
+    console.log(this.timeStampReadArray)
+    this.timeStampReadBuffer.unmap()
+
+  }
+
   public async debug() {
 
     this.update();
@@ -333,4 +411,4 @@ class Controller {
 
 }
 
-export { Controller, device, canvasFormat, canvasSize };
+export { Controller, device, canvasFormat, canvasSize, timeStampQuerySet };

@@ -198,6 +198,7 @@ abstract class SPH {
   public abstract initResource(): Promise<void>;
   public abstract initComputePipeline(): Promise<void>;
   public abstract run(commandEncoder: GPUCommandEncoder): void;
+  public abstract runTimestamp(commandEncoder: GPUCommandEncoder): void;
   public abstract reset(): void;
   public abstract setBoundaryData(data: string): void;
   public abstract optionsChange(e: any): void;

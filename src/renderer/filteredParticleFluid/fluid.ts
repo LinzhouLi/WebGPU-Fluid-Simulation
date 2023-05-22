@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { ResourceType } from '../../common/resourceFactory';
-import { canvasSize, device } from '../../controller';
+import { canvasSize, device, timeStampQuerySet } from '../../controller';
 import { resourceFactory } from '../../common/base';
 import { ResourceFactory } from '../../common/resourceFactory';
 import { SPH } from '../../simulator/SPH';
@@ -148,6 +148,32 @@ class FilteredParticleFluid {
 
     // screen space rendering
     this.screenSpaceRenderer.execute( commandEncoder, ctxTextureView );
+
+  }
+
+  public renderTimestamp(
+    commandEncoder: GPUCommandEncoder,
+    ctxTextureView: GPUTextureView
+  ) {
+
+    // render point sprite
+    this.paricleRasterizer.execute(
+      commandEncoder, 
+      this.resource.fluidDepthMap as GPUTexture, 
+      this.resource.fluidVolumeMap as GPUTexture
+    );
+
+    commandEncoder.writeTimestamp(timeStampQuerySet, 6);
+
+    // texture filter
+    if (this.filter) this.textureFilter.execute( commandEncoder );
+
+    commandEncoder.writeTimestamp(timeStampQuerySet, 7);
+
+    // screen space rendering
+    this.screenSpaceRenderer.execute( commandEncoder, ctxTextureView );
+
+    commandEncoder.writeTimestamp(timeStampQuerySet, 8);
 
   }
 

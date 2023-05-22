@@ -29,23 +29,28 @@ class Main {
 
   start() {
     
-    let frame = 0;
     const render = () => {
       this.stats.begin();
-      
       this.controller.update();
       this.controller.run();
-
       this.stats.end();
-      
       requestAnimationFrame(render);
-      frame++;
     }
 
     render();
 
     // this.controller.debug();
 
+  }
+
+  async startTimestamp() {
+    while(1) {
+      this.stats.begin();
+      this.controller.update();
+      await this.controller.runTimestamp();
+      await new Promise(requestAnimationFrame);
+      this.stats.end();
+    }
   }
 
   async init() {
@@ -66,4 +71,5 @@ class Main {
 }
 
 const main = new Main();
-main.init().then(() => main.start());
+await main.init();
+await main.startTimestamp();
