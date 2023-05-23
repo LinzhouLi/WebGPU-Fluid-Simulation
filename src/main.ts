@@ -72,4 +72,5 @@ class Main {
 
 const main = new Main();
 await main.init();
-await main.startTimestamp();
+main.start();
+// await main.startTimestamp();

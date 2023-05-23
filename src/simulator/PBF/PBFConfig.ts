@@ -18,7 +18,7 @@ abstract class PBFConfig extends SPH {
 
   constructor() {
 
-    super(0.007, 1); // particle radius = 0.006, sub step count = 1
+    super(0.006, 1); // particle radius = 0.006, sub step count = 1
 
     this.ifBoundary = false;
     const bufferSize = 8 * Float32Array.BYTES_PER_ELEMENT;

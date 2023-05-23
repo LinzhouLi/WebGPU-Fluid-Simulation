@@ -133,8 +133,8 @@ class Controller {
     
     // device
     device = await adapter.requestDevice({ // @ts-ignore
-      requiredFeatures: ['timestamp-query', 'timestamp-query-inside-passes'] // 'float32-filterable'
-      // requiredFeatures: []
+      // requiredFeatures: ['timestamp-query', 'timestamp-query-inside-passes'] // 'float32-filterable'
+      requiredFeatures: []
     }); // "shader-f16" feature is not supported on my laptop
     console.log(device)
     // context
@@ -157,40 +157,44 @@ class Controller {
   }
 
   private setSceneConfig(config: {
-    scene: number,
-    skybox: boolean,
-    fluid: boolean
+    property: string,
+    object: {
+      scene: number,
+      skybox: boolean,
+      fluid: boolean
+    }
   }) {
 
-    this.ifSkybox = config.skybox;
-    this.ifFluid = config.fluid;
+    this.ifSkybox = config.object.skybox;
+    this.ifFluid = config.object.fluid;
+    if (config.property != 'scene') return;
 
     this.simulator.reset();
     this.simulator.stop();
 
-    if (config.scene == 0) { // Bunny Drop
+    if (config.object.scene == 0) { // Bunny Drop
       this.simulator.voxelizeMesh(this.bunny_mesh);
       this.ifMesh = false;
     }
-    else if (config.scene == 1) { // Cube Drop
+    else if (config.object.scene == 1) { // Cube Drop
       this.simulator.voxelizeCube(
         new THREE.Vector3(0.15, 0.35, 0.15),
         new THREE.Vector3(0.65, 0.85, 0.65)
       );
       this.ifMesh = false;
     }
-    else if (config.scene == 2) { // Water Droplet
+    else if (config.object.scene == 2) { // Water Droplet
       this.simulator.voxelizeCube(
         new THREE.Vector3(0.005, 0.005, 0.005),
         new THREE.Vector3(0.995, 0.08, 0.995)
       );
       this.simulator.voxelizeSphere(
-        new THREE.Vector3(0.5, 0.6, 0.5),
+        new THREE.Vector3(0.5, 0.7, 0.5),
         0.12
       );
       this.ifMesh = false;
     }
-    else if (config.scene == 3) { // Double Dam Break
+    else if (config.object.scene == 3) { // Double Dam Break
       this.simulator.voxelizeCube(
         new THREE.Vector3(0.005, 0.005, 0.005),
         new THREE.Vector3(0.3, 0.6, 0.3)
@@ -201,7 +205,7 @@ class Controller {
       );
       this.ifMesh = false;
     }
-    else if (config.scene == 4) { // Boundary
+    else if (config.object.scene == 4) { // Boundary
       this.simulator.voxelizeCube(
         new THREE.Vector3(0.15, 0.35, 0.15),
         new THREE.Vector3(0.65, 0.85, 0.65)
@@ -212,6 +216,7 @@ class Controller {
     }
 
     this.simulator.setParticlePosition();
+    console.log(this.simulator.particleCount);
 
   }
 
@@ -262,7 +267,7 @@ class Controller {
 
     await this.loadData();
 
-    this.initTimeStamp();
+    // this.initTimeStamp();
 
     // global resource
     this.camera = camera;
@@ -293,8 +298,11 @@ class Controller {
     this.config.initRenderingOptions((e) => this.fluidRender.optionsChange(e));
     this.fluidRender.setConfig(this.config.renderingOptions);
 
-    this.config.initSceneOptions((e) => this.setSceneConfig(e.object));
-    this.setSceneConfig(this.config.scnenOptions);
+    this.config.initSceneOptions((e) => this.setSceneConfig(e));
+    this.setSceneConfig({
+      object: this.config.scnenOptions,
+      property: 'scene'
+    });
 
   }
 

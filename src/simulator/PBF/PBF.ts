@@ -401,11 +401,7 @@ class PBF extends PBFConfig {
     
     this.neighborSearch.clearBuffer(commandEncoder);
     
-    const passEncoder = commandEncoder.beginComputePass({
-      timestampWrites: {
-        querySet: timeStampQuerySet
-      }
-    });
+    const passEncoder = commandEncoder.beginComputePass();
     const workgroupCount = Math.ceil(this.particleCount / 256);
     
     passEncoder.setBindGroup(0, this.configBindGroup);

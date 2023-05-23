@@ -21,7 +21,7 @@ abstract class SPH {
     ResourceFactory.RegisterFormats(SPH.ResourceFormats);
   }
 
-  static MAX_PARTICLE_NUM = 1 << 17 - 1;
+  static MAX_PARTICLE_NUM = 1 << 18 - 1;
   static MAX_NEIGHBOR_COUNT = 60;
   static KERNEL_RADIUS = 0.025;
   static TIME_STEP = 1 / 300;
