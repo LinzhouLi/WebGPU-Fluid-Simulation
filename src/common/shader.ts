@@ -42,7 +42,7 @@ struct RenderingOptions {
   mode: u32,
   filterSize: u32,
   radius: f32,
-  tickness: f32,
+  opacity: f32,
   tintColor: vec3<f32>
 }
 `;

@@ -91,7 +91,7 @@ fn shading(
     let refractDirWorld = (camera.viewMatrixInverse * vec4<f32>(refractDirEye, 0.0)).xyz;
     let refractColor = textureSample(envMap, linearSampler, refractDirWorld).rgb;
 
-    let attenuate = exp(-thickness);
+    let attenuate = exp(-options.opacity * thickness);
     color = vec4<f32>(
       mix(
         mix(options.tintColor, refractColor, attenuate),
@@ -123,7 +123,7 @@ fn main(input: FragInput) -> FragOutput {
   let positionEye = getPosition(input.coord.xy, depthEye);
   let normalEye = getNormal(positionEye);
   if (depthEye == 0.0) { discard; }
-  let fluidVolume = textureSample(fluidVolumeMap, linearSampler, input.coord.xy).r;
+  let fluidVolume = 0.02 * textureSample(fluidVolumeMap, linearSampler, input.coord.xy).r;
 
   var color: vec4<f32>;
 

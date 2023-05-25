@@ -115,7 +115,7 @@ class FilteredParticleFluid {
     mode: number,
     filterSize: number,
     particleRadius: number,
-    particleTickness: number,
+    opacity: number,
     tintColor: { r: number, g: number, b: number }
   }) {
 
@@ -123,7 +123,7 @@ class FilteredParticleFluid {
     this.optionsBufferView.setUint32(0, config.mode, true);
     this.optionsBufferView.setUint32(4, config.filterSize, true);
     this.optionsBufferView.setFloat32(8, config.particleRadius, true);
-    this.optionsBufferView.setFloat32(12, config.particleTickness, true);
+    this.optionsBufferView.setFloat32(12, config.opacity, true);
     this.optionsBufferView.setFloat32(16, config.tintColor.r / 255.0, true);
     this.optionsBufferView.setFloat32(20, config.tintColor.g / 255.0, true);
     this.optionsBufferView.setFloat32(24, config.tintColor.b / 255.0, true);

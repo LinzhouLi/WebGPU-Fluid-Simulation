@@ -78,6 +78,7 @@ let device: GPUDevice;
 let canvasFormat: GPUTextureFormat;
 let canvasSize: { width: number, height: number };
 let timeStampQuerySet: GPUQuerySet;
+let frame = 0;
 
 class Controller {
 
@@ -102,6 +103,7 @@ class Controller {
   private bunny_mesh: THREE.Mesh;
   private torus_mesh: THREE.Mesh;
   private torus_boundary: string;
+  private domain_boundary: string;
 
   private timeStampSize = 9;
   private timeStampBuffer: GPUBuffer;
@@ -130,6 +132,9 @@ class Controller {
     });
     if (!adapter) throw new Error('No Adapter Found');
     adapter.features.forEach(feature => console.log(`Support feature: ${feature}`));
+
+    const adapterInfo = await adapter.requestAdapterInfo();
+    console.log(adapterInfo)
     
     // device
     device = await adapter.requestDevice({ // @ts-ignore
@@ -243,6 +248,7 @@ class Controller {
     this.torus_mesh.updateMatrixWorld();
 
     this.torus_boundary =  await loader.loadFile("model/torus.cdm") as string;
+    // this.domain_boundary = await loader.loadFile("model/domain_boundary.cdm") as string;
 
   }
 
@@ -266,8 +272,6 @@ class Controller {
     this.RegisterResourceFormats();
 
     await this.loadData();
-
-    // this.initTimeStamp();
 
     // global resource
     this.camera = camera;
@@ -344,6 +348,7 @@ class Controller {
 
   public async runTimestamp() {
 
+    frame++;
 		const commandEncoder = device.createCommandEncoder();
     commandEncoder.writeTimestamp(timeStampQuerySet, 0);
 
@@ -394,10 +399,14 @@ class Controller {
     const buffer = this.timeStampReadBuffer.getMappedRange(0, this.timeStampReadBuffer.size);
     const array = new BigUint64Array(buffer);
     for (let i = 1; i < this.timeStampSize; i++) {
-      this.timeStampReadArray[i-1] = Number(array[i] - array[i-1]) * 1e-3;
+      this.timeStampReadArray[i-1] += Number(array[i] - array[i-1]) * 1e-3;
     }
-    console.log(this.timeStampReadArray)
+    // console.log(this.timeStampReadArray)
     this.timeStampReadBuffer.unmap()
+
+    if (frame == 300) {
+      this.timeStampReadArray.forEach(val => console.log(val / frame));
+    }
 
   }
 

@@ -44,6 +44,7 @@ class Main {
   }
 
   async startTimestamp() {
+    this.controller.initTimeStamp();
     while(1) {
       this.stats.begin();
       this.controller.update();

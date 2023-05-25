@@ -69,7 +69,7 @@ fn main(input: FragmentInput) -> FragmentOutput {
   if (radius2 > 1.0) { discard; }
 
   // caculate volume // sigma = xxx
-  let volume = exp(-radius2 * 2.0) * 0.02 * options.tickness;
+  let volume = exp(-radius2 * 2.0);
 
   return FragmentOutput( volume );
 }

@@ -14,7 +14,7 @@ class Config {
     mode: 0,
     filterSize: 32,
     particleRadius: 0.02,
-    particleTickness: 0.25,
+    opacity: 0.25,
     tintColor: { r: 6, g: 105, b: 217 }
   };
 
@@ -50,7 +50,7 @@ class Config {
       { 'PBR': 0, 'PBR(No Refraction)': 1, 'Diffuse': 2, 'Normal': 3, 'Depth': 4, 'Thickness': 5, 'Positon': 6 }
     );
     renderingOptionGUI.add(this.renderingOptions, 'particleRadius', 0.005, 0.05);
-    renderingOptionGUI.add(this.renderingOptions, 'particleTickness', 0, 1.0);
+    renderingOptionGUI.add(this.renderingOptions, 'opacity', 0, 1.0);
     renderingOptionGUI.addColor(this.renderingOptions, 'tintColor', 255);
     renderingOptionGUI.onFinishChange(onChangeFunc);
     
