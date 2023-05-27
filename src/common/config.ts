@@ -6,7 +6,7 @@ class Config {
 
   public scnenOptions = {
     scene: 0,
-    skybox: true,
+    skybox: 1,
     fluid: true
   }
 
@@ -36,7 +36,9 @@ class Config {
     sceneOptionGUI.add(this.scnenOptions, 'scene',
       { 'Bunny Drop': 0, 'Cube Drop': 1, 'Water Droplet': 2, 'Double Dam Break': 3, 'Boundary': 4 }
     );
-    sceneOptionGUI.add(this.scnenOptions, 'skybox');
+    sceneOptionGUI.add(this.scnenOptions, 'skybox',
+      { 'None': 0, 'Sea': 1, 'Church': 2, 'Fall': 3, 'Mountain': 4 }
+    );
     sceneOptionGUI.add(this.scnenOptions, 'fluid');
     sceneOptionGUI.onFinishChange(onChangeFunc);
 

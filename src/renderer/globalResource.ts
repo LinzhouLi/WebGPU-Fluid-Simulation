@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { device, canvasSize, canvasFormat } from '../controller';
+import { device, canvasSize } from '../controller';
 import type { TypedArray } from '../common/base';
 import { resourceFactory, bindGroupFactory, EnvMapResolution } from '../common/base';
 import type { ResourceType, BufferData, TextureData, TextureArrayData } from '../common/resourceFactory';
@@ -110,7 +110,7 @@ class GlobalResource {
 
   }
 
-  public async initResource(background: THREE.CubeTexture) {
+  public async initResource() {
 
     const light = this.light as THREE.DirectionalLight;
     let lightDir = light.position.clone().sub(light.target.position).normalize();
@@ -125,10 +125,6 @@ class GlobalResource {
           ...lightDir.toArray(), 0,
           ...lightColor.toArray(), 0
         ])
-      },
-      envMap: { 
-        value: await resourceFactory.toBitmaps(background.image),
-        flipY: new Array(6).fill(background.flipY)
       }
     }
     
@@ -143,6 +139,19 @@ class GlobalResource {
     );
     this.bindgroupLayout = layout_group.layout;
     this.bindgroup = layout_group.group;
+
+  }
+
+  public setSkybox(bitmaps: ImageBitmap[], flipY: boolean = false) {
+    console.log(123)
+    const cubeTexture = this.resource.envMap as GPUTexture;
+    for (let i = 0; i < bitmaps.length; i++) {
+      device.queue.copyExternalImageToTexture(
+        { source: bitmaps[i], flipY}, 
+        { texture: cubeTexture, origin: [0, 0, i] },
+        [ EnvMapResolution, EnvMapResolution, 1]
+      )
+    }
 
   }
 

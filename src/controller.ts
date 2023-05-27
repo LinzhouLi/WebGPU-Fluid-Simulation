@@ -7,6 +7,7 @@ import { SPH } from './simulator/SPH';
 import { PBF } from './simulator/PBF/PBF';
 import { FilteredParticleFluid } from './renderer/filteredParticleFluid/fluid';
 import { loader } from './common/loader';
+import { resourceFactory } from './common/base';
 
 
 // console.info( 'THREE.WebGPURenderer: Modified Matrix4.makePerspective() and Matrix4.makeOrtographic() to work with WebGPU, see https://github.com/mrdoob/three.js/issues/20276.' );
@@ -99,7 +100,10 @@ class Controller {
   private simulator: SPH;
   private fluidRender: FilteredParticleFluid;
 
-  private sky_cube_tex: THREE.CubeTexture;
+  private background_sea: ImageBitmap[];
+  private background_church: ImageBitmap[];
+  private background_fall: ImageBitmap[];
+  private background_mountain: ImageBitmap[];
   private bunny_mesh: THREE.Mesh;
   private torus_mesh: THREE.Mesh;
   private torus_boundary: string;
@@ -165,73 +169,110 @@ class Controller {
     property: string,
     object: {
       scene: number,
-      skybox: boolean,
+      skybox: number,
       fluid: boolean
     }
   }) {
 
-    this.ifSkybox = config.object.skybox;
+    this.ifSkybox = config.object.skybox != 0;
     this.ifFluid = config.object.fluid;
-    if (config.property != 'scene') return;
 
-    this.simulator.reset();
-    this.simulator.stop();
-
-    if (config.object.scene == 0) { // Bunny Drop
-      this.simulator.voxelizeMesh(this.bunny_mesh);
-      this.ifMesh = false;
-    }
-    else if (config.object.scene == 1) { // Cube Drop
-      this.simulator.voxelizeCube(
-        new THREE.Vector3(0.15, 0.35, 0.15),
-        new THREE.Vector3(0.65, 0.85, 0.65)
-      );
-      this.ifMesh = false;
-    }
-    else if (config.object.scene == 2) { // Water Droplet
-      this.simulator.voxelizeCube(
-        new THREE.Vector3(0.005, 0.005, 0.005),
-        new THREE.Vector3(0.995, 0.08, 0.995)
-      );
-      this.simulator.voxelizeSphere(
-        new THREE.Vector3(0.5, 0.7, 0.5),
-        0.12
-      );
-      this.ifMesh = false;
-    }
-    else if (config.object.scene == 3) { // Double Dam Break
-      this.simulator.voxelizeCube(
-        new THREE.Vector3(0.005, 0.005, 0.005),
-        new THREE.Vector3(0.3, 0.6, 0.3)
-      );
-      this.simulator.voxelizeCube(
-        new THREE.Vector3(0.7, 0.005, 0.7),
-        new THREE.Vector3(0.995, 0.6, 0.995)
-      );
-      this.ifMesh = false;
-    }
-    else if (config.object.scene == 4) { // Boundary
-      this.simulator.voxelizeCube(
-        new THREE.Vector3(0.15, 0.35, 0.15),
-        new THREE.Vector3(0.65, 0.85, 0.65)
-      );
-      this.simulator.setBoundaryData(this.torus_boundary);
-      this.mesh.setMesh(this.torus_mesh);
-      this.ifMesh = true;
+    if (config.property == 'skybox' || config.property == 'all') {
+      switch (config.object.skybox) {
+        case 1: { this.globalResource.setSkybox(this.background_sea); break; }
+        case 2: { this.globalResource.setSkybox(this.background_church); break; }
+        case 3: { this.globalResource.setSkybox(this.background_fall); break; }
+        case 4: { this.globalResource.setSkybox(this.background_mountain); break; }
+      }
     }
 
-    this.simulator.setParticlePosition();
-    console.log(this.simulator.particleCount);
+    if (config.property == 'scene' || config.property == 'all') {
+      this.simulator.reset();
+      this.simulator.stop();
+      switch (config.object.scene) {
+        case 0: { // Bunny Drop
+          this.simulator.voxelizeMesh(this.bunny_mesh);
+          this.ifMesh = false;
+          break;
+        }
+        case 1: { // Cube Drop
+          this.simulator.voxelizeCube(
+            new THREE.Vector3(0.15, 0.35, 0.15),
+            new THREE.Vector3(0.65, 0.85, 0.65)
+          );
+          this.ifMesh = false;
+          break;
+        }
+        case 2: { // Water Droplet
+          this.simulator.voxelizeCube(
+            new THREE.Vector3(0.005, 0.005, 0.005),
+            new THREE.Vector3(0.995, 0.08, 0.995)
+          );
+          this.simulator.voxelizeSphere(
+            new THREE.Vector3(0.5, 0.7, 0.5),
+            0.12
+          );
+          this.ifMesh = false;
+          break;
+        }
+        case 3: { // Double Dam Break
+          this.simulator.voxelizeCube(
+            new THREE.Vector3(0.005, 0.005, 0.005),
+            new THREE.Vector3(0.3, 0.6, 0.3)
+          );
+          this.simulator.voxelizeCube(
+            new THREE.Vector3(0.7, 0.005, 0.7),
+            new THREE.Vector3(0.995, 0.6, 0.995)
+          );
+          this.ifMesh = false;
+          break;
+        }
+        case 4: { // Boundary
+          this.simulator.voxelizeCube(
+            new THREE.Vector3(0.15, 0.35, 0.15),
+            new THREE.Vector3(0.65, 0.85, 0.65)
+          );
+          this.simulator.setBoundaryData(this.torus_boundary);
+          this.mesh.setMesh(this.torus_mesh);
+          this.ifMesh = true;
+          break;
+        }
+      }
+      this.simulator.setParticlePosition();
+      console.log(this.simulator.particleCount);
+    }
 
   }
 
   private async loadData() {
 
-    this.sky_cube_tex = await loader.loadCubeTexture([
-      "skybox/right.jpg", "skybox/left.jpg", // px nx
-      "skybox/top.jpg", "skybox/bottom.jpg", // py ny
-      "skybox/front.jpg", "skybox/back.jpg"  // pz nz
+    const cubetex_sea = await loader.loadCubeTexture([
+      "skybox/sea/right.jpg", "skybox/sea/left.jpg", // px nx
+      "skybox/sea/top.jpg", "skybox/sea/bottom.jpg", // py ny
+      "skybox/sea/front.jpg", "skybox/sea/back.jpg"  // pz nz
     ]);
+    this.background_sea = await resourceFactory.toBitmaps(cubetex_sea.image);
+
+    const cubetex_church = await loader.loadCubeTexture([
+      "skybox/church/posx.jpg", "skybox/church/negx.jpg", // px nx
+      "skybox/church/posy.jpg", "skybox/church/negy.jpg", // py ny
+      "skybox/church/posz.jpg", "skybox/church/negz.jpg"  // pz nz
+    ]);
+    this.background_church = await resourceFactory.toBitmaps(cubetex_church.image);
+
+    const cubetex_fall = await loader.loadCubeTexture([
+      "skybox/fall/posx.jpg", "skybox/fall/negx.jpg", // px nx
+      "skybox/fall/posy.jpg", "skybox/fall/negy.jpg", // py ny
+      "skybox/fall/posz.jpg", "skybox/fall/negz.jpg"  // pz nz
+    ]);
+    this.background_fall = await resourceFactory.toBitmaps(cubetex_fall.image);
+
+    const cubetex_mountain = await loader.loadCubeTexture([
+      "skybox/mountain/posx.jpg", "skybox/mountain/negx.jpg", // px nx
+      "skybox/mountain/posy.jpg", "skybox/mountain/negy.jpg", // py ny
+      "skybox/mountain/posz.jpg", "skybox/mountain/negz.jpg"  // pz nz
+    ]);
+    this.background_mountain = await resourceFactory.toBitmaps(cubetex_mountain.image);
 
     const glb = await loader.loadGLTF("model/bunny.glb", true);
     this.bunny_mesh = glb.scene.children[0] as THREE.Mesh;
@@ -278,7 +319,7 @@ class Controller {
     this.camera.updateMatrixWorld();
     this.camera.updateProjectionMatrix(); 
     this.globalResource = new GlobalResource(camera, light);
-    await this.globalResource.initResource(this.sky_cube_tex);
+    await this.globalResource.initResource();
     this.renderDepthView = (this.globalResource.resource.renderDepthMap as GPUTexture).createView();
 
     // sky box renderer
@@ -305,7 +346,7 @@ class Controller {
     this.config.initSceneOptions((e) => this.setSceneConfig(e));
     this.setSceneConfig({
       object: this.config.scnenOptions,
-      property: 'scene'
+      property: 'all'
     });
 
   }
