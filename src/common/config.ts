@@ -28,6 +28,7 @@ class Config {
 
   constructor() {
     this.gui = new GUI();
+    this.gui.hide();
   }
 
   public initSceneOptions(onChangeFunc: (msg) => void) {
@@ -68,6 +69,10 @@ class Config {
     simulationOptionGUI.add(this.simulationOptions, 'gravity', 0, 10);
     simulationOptionGUI.onFinishChange(onChangeFunc);
     
+  }
+
+  public show() {
+    this.gui.show();
   }
 
 }

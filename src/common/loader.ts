@@ -101,7 +101,7 @@ class Loader {
 
   }
 
-  public loadCubeTexture(paths: string[]) {
+  public loadCubeTexture(paths: string[], onProgress: (v: ProgressEvent<EventTarget>) => void = null) {
 
     return new Promise((
       resolve: (cubeTexture: THREE.CubeTexture) => void,
@@ -111,7 +111,7 @@ class Loader {
       this.loaderCubeTexture.load(
         paths,
         texture => resolve(texture),  // onLoad
-        null, // onProgress
+        progress => { if(onProgress) onProgress(progress); },
         error => reject(error) // onError
       )
     });

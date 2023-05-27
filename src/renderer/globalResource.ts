@@ -143,7 +143,6 @@ class GlobalResource {
   }
 
   public setSkybox(bitmaps: ImageBitmap[], flipY: boolean = false) {
-    console.log(123)
     const cubeTexture = this.resource.envMap as GPUTexture;
     for (let i = 0; i < bitmaps.length; i++) {
       device.queue.copyExternalImageToTexture(

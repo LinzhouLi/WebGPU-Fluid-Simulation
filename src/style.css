@@ -29,3 +29,49 @@ body {
   flex-direction: column;
   justify-content: center;
 }
+
+.chart {
+  background: rgba(255, 255, 255, 0.1);
+  justify-content: flex-start;
+  border-radius: 100px;
+  align-items: center;
+  padding: 0 5px;
+  display: flex;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  height: 40px;
+  width: 500px;
+}
+  .chart span {
+    /* You can modify the value below to change the distance between the percentage number and the bar */
+    margin-left: 5px;
+    color: #fff;
+    font-weight: bolder;
+  }
+
+.bar {
+  /* You can modify the total time used for the animation here */
+  /* animation: load 3s normal forwards; */
+  /* 
+  Add a little spice by having a shadow below the bar.
+  Feel free to comment out this line below to have an even LITE version :D 
+  */
+  box-shadow: 0 10px 40px -10px #fff;
+
+  border-radius: 100px;
+  background: #fff;
+  height: 30px;
+  width: 0;
+} 
+
+@keyframes load {
+  0% {
+    width: 0;
+  }
+  100% {
+    /* You need to change the percentage below to match the value in the corresponding <span> */
+    width: 100%;
+  }
+}

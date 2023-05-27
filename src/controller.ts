@@ -244,7 +244,7 @@ class Controller {
 
   }
 
-  private async loadData() {
+  public async loadData(onProgress: (percentage: number) => void) {
 
     const cubetex_sea = await loader.loadCubeTexture([
       "skybox/sea/right.jpg", "skybox/sea/left.jpg", // px nx
@@ -252,6 +252,7 @@ class Controller {
       "skybox/sea/front.jpg", "skybox/sea/back.jpg"  // pz nz
     ]);
     this.background_sea = await resourceFactory.toBitmaps(cubetex_sea.image);
+    onProgress(35);
 
     const cubetex_church = await loader.loadCubeTexture([
       "skybox/church/posx.jpg", "skybox/church/negx.jpg", // px nx
@@ -259,6 +260,7 @@ class Controller {
       "skybox/church/posz.jpg", "skybox/church/negz.jpg"  // pz nz
     ]);
     this.background_church = await resourceFactory.toBitmaps(cubetex_church.image);
+    onProgress(50);
 
     const cubetex_fall = await loader.loadCubeTexture([
       "skybox/fall/posx.jpg", "skybox/fall/negx.jpg", // px nx
@@ -266,6 +268,7 @@ class Controller {
       "skybox/fall/posz.jpg", "skybox/fall/negz.jpg"  // pz nz
     ]);
     this.background_fall = await resourceFactory.toBitmaps(cubetex_fall.image);
+    onProgress(65);
 
     const cubetex_mountain = await loader.loadCubeTexture([
       "skybox/mountain/posx.jpg", "skybox/mountain/negx.jpg", // px nx
@@ -273,12 +276,14 @@ class Controller {
       "skybox/mountain/posz.jpg", "skybox/mountain/negz.jpg"  // pz nz
     ]);
     this.background_mountain = await resourceFactory.toBitmaps(cubetex_mountain.image);
+    onProgress(80);
 
     const glb = await loader.loadGLTF("model/bunny.glb", true);
     this.bunny_mesh = glb.scene.children[0] as THREE.Mesh;
     this.bunny_mesh.scale.set(0.4, 0.4, 0.4);
     this.bunny_mesh.position.set(0.5, 0.3, 0.5);
     this.bunny_mesh.updateMatrixWorld();
+    onProgress(90);
 
     const geometry = new THREE.TorusGeometry( 1.0, 0.4, 16, 60 );
     const material = new THREE.MeshPhongMaterial( { color: 0xffff00 } );
@@ -311,8 +316,6 @@ class Controller {
   public async initScene(camera: THREE.PerspectiveCamera, light: THREE.DirectionalLight) {
     
     this.RegisterResourceFormats();
-
-    await this.loadData();
 
     // global resource
     this.camera = camera;
@@ -349,6 +352,10 @@ class Controller {
       property: 'all'
     });
 
+  }
+
+  public showConfigUI() {
+    this.config.show();
   }
 
   public run() {
