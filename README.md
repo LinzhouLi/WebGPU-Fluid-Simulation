@@ -14,11 +14,11 @@ Thesis: [LinzhouLi/UndergraduateThesis (github.com)](https://github.com/LinzhouL
 
 ## 运行界面
 
-![result](img/result.png)
+![result](img/result.jpg)
 
 ## 仿真效果
 
-![demo](img/demo.png)
+![demo](img/demo.jpg)
 
 ## 主要参考文献
 
