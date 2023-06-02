@@ -7,7 +7,8 @@ class Config {
   public scnenOptions = {
     scene: 0,
     skybox: 1,
-    fluid: true
+    fluid: true,
+    'Simulation Start/Pause': function() { }
   }
 
   public renderingOptions = {
@@ -31,8 +32,9 @@ class Config {
     this.gui.hide();
   }
 
-  public initSceneOptions(onChangeFunc: (msg) => void) {
+  public initSceneOptions(onChangeFunc: (msg) => void, switchFunc: () => void) {
 
+    this.scnenOptions['Simulation Start/Pause'] = switchFunc;
     const sceneOptionGUI = this.gui.addFolder('Scene Options');
     sceneOptionGUI.add(this.scnenOptions, 'scene',
       { 'Bunny Drop': 0, 'Cube Drop': 1, 'Water Droplet': 2, 'Double Dam Break': 3, 'Boundary': 4 }
@@ -41,6 +43,7 @@ class Config {
       { 'None': 0, 'Sea': 1, 'Church': 2, 'Fall': 3, 'Mountain': 4 }
     );
     sceneOptionGUI.add(this.scnenOptions, 'fluid');
+    sceneOptionGUI.add(this.scnenOptions, 'Simulation Start/Pause');
     sceneOptionGUI.onFinishChange(onChangeFunc);
 
   }

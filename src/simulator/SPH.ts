@@ -79,6 +79,7 @@ abstract class SPH {
 
   }
 
+  public switch() { this.pause = !this.pause || !this.position; }
   public stop() { this.pause = true; }
   public start() { this.pause = this.position ? false : true; }
 
@@ -188,9 +189,7 @@ abstract class SPH {
   public enableInteraction() {
     
     document.addEventListener('keydown', event => {
-      if (event.key.toUpperCase() === ' ') {
-        this.pause = !this.pause || !this.position;
-      }
+      if (event.key.toUpperCase() === ' ') { this.switch(); }
     });
 
   }

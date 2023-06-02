@@ -346,7 +346,10 @@ class Controller {
     this.config.initRenderingOptions((e) => this.fluidRender.optionsChange(e));
     this.fluidRender.setConfig(this.config.renderingOptions);
 
-    this.config.initSceneOptions((e) => this.setSceneConfig(e));
+    this.config.initSceneOptions(
+      (e) => this.setSceneConfig(e),
+      () => this.simulator.switch()
+    );
     this.setSceneConfig({
       object: this.config.scnenOptions,
       property: 'all'
