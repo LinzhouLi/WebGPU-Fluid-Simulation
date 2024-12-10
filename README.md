@@ -4,23 +4,23 @@ Try: https://linzhouli.github.io/WebGPU-Fluid-Simulation/
 
 Thesis: [LinzhouLi/UndergraduateThesis (github.com)](https://github.com/LinzhouLi/UndergraduateThesis)
 
-## 主要工作
+## Introduction
 
-1. 实现了基于位置的流体密度约束解算框架（Position Based Fluid，PBF），保证流体不可压缩性。
-2. 实现了隐式边界条件（Volume Map），用于正确补偿流体边界密度采样与流体碰撞检测。
-3. 通过添加非压强力改善流体细节，包括表面张力（Surface Tension）、涡量补偿力（Vorticity Confinement）与人工粘性力（XSPH）。
-4. 完全并行的高效粒子搜索算法，加速方法为均匀空间网格（Hash Grid），实现算法为并行前缀和（Exclusive Scan）。
-5. 实现了流体屏幕空间渲染，深度图平滑使用窄域滤波器（Narrow-Range Filter）。
+1. Simulate fluid on WebGPU with Position Based Fluid (PBF).
+2. Use implicit boundary condition (Volume Map) to handle the boundary.
+3. Improving details with Surface Tension, Vorticity Confinement and XSPH.
+4. Fully parallel neighbor search (Hash Grid, Exclusive Scan).
+5. Real-time rendering fluids in screen space, smooth the depth map with Narrow-Range Filter.
 
-## 运行界面
+## Real-Time Demo
 
 ![result](img/result.jpg)
 
-## 仿真效果
+## Simulation Results
 
 ![demo](img/demo.jpg)
 
-## 主要参考文献
+## References
 
 MACKLIN M, MÜLLER M. Position based fluids[J]. ACM Transactions on Graphics (TOG), 2013, 32(4): 1-12.
 
