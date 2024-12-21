@@ -2,7 +2,7 @@
 
 Try: https://linzhouli.github.io/WebGPU-Fluid-Simulation/
 
-Thesis: [LinzhouLi/UndergraduateThesis (github.com)](https://github.com/LinzhouLi/UndergraduateThesis)
+Thesis (Chinese): [LinzhouLi/UndergraduateThesis (github.com)](https://github.com/LinzhouLi/UndergraduateThesis)
 
 ## Introduction
 
