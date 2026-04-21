@@ -137,7 +137,13 @@ class Controller {
     if (!adapter) throw new Error('No Adapter Found');
     adapter.features.forEach(feature => console.log(`Support feature: ${feature}`));
 
-    const adapterInfo = await adapter.requestAdapterInfo();
+    const requestAdapterInfo = (adapter as GPUAdapter & {
+      requestAdapterInfo?: () => Promise<unknown>;
+      info?: unknown;
+    }).requestAdapterInfo;
+    const adapterInfo = typeof requestAdapterInfo === 'function'
+      ? await requestAdapterInfo.call(adapter)
+      : (adapter as GPUAdapter & { info?: unknown }).info;
     console.log(adapterInfo)
     
     // device

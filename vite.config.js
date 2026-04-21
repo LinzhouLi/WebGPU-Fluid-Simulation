@@ -1,9 +1,9 @@
+import { defineConfig } from 'vite';
 
-/** @type {import('vite').UserConfig} */
-export default {
-  base: 'https://linzhouli.github.io/WebGPU-Fluid-Simulation/',
+export default defineConfig(({ command }) => ({
+  base: command === 'serve' ? '/' : '/WebGPU-Fluid-Simulation/',
   build: {
     target: 'esnext',
     outDir: 'docs'
   }
-}
+}));
