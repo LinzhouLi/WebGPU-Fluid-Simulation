@@ -30,23 +30,6 @@ struct MeshMaterial {
 };
 `;
 
-const SphereMaterial = /* wgsl */`
-struct SphereMaterial {
-  sphereRadius: f32,
-  color: vec3<f32>
-};
-`;
-
-const RenderingOptions = /* wgsl */`
-struct RenderingOptions {
-  mode: u32,
-  filterSize: u32,
-  radius: f32,
-  opacity: f32,
-  tintColor: vec3<f32>
-}
-`;
-
 const SimulationOptions = /* wgsl */`
 struct SimulationOptions {
   particleCount: u32,
@@ -57,7 +40,7 @@ struct SimulationOptions {
 }
 `;
 
-const ShaderStruct = { Camera, DirectionalLight, Transform, MeshMaterial, SphereMaterial, RenderingOptions, SimulationOptions };
+const ShaderStruct = { Camera, DirectionalLight, Transform, MeshMaterial, SimulationOptions };
 
 
 const sRGBGammaEncode = /* wgsl */`

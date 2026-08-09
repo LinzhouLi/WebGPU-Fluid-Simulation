@@ -5,7 +5,7 @@ import { Skybox } from './renderer/skybox/skybox';
 import { Mesh } from './renderer/mesh/mesh';
 import { SPH } from './simulator/SPH';
 import { PBF } from './simulator/PBF/PBF';
-import { FilteredParticleFluid } from './renderer/filteredParticleFluid/fluid';
+import { RawParticles } from './renderer/rawParticles/particles';
 import { loader } from './common/loader';
 import { resourceFactory } from './common/base';
 
@@ -93,12 +93,12 @@ class Controller {
 
   private ifSkybox: boolean;
   private ifMesh: boolean;
-  private ifFluid: boolean;
+  private ifParticles: boolean;
 
   private skybox: Skybox;
   private mesh: Mesh;
   private simulator: SPH;
-  private fluidRender: FilteredParticleFluid;
+  private particleRenderer: RawParticles;
 
   private background_sea: ImageBitmap[];
   private background_church: ImageBitmap[];
@@ -109,7 +109,7 @@ class Controller {
   private torus_boundary: string;
   private domain_boundary: string;
 
-  private timeStampSize = 9;
+  private timeStampSize = 6;
   private timeStampBuffer: GPUBuffer;
   private timeStampReadBuffer: GPUBuffer;
   private timeStampReadArray: Array<number>;
@@ -122,7 +122,7 @@ class Controller {
   private RegisterResourceFormats() {
     GlobalResource.RegisterResourceFormats();
     Mesh.RegisterResourceFormats();
-    FilteredParticleFluid.RegisterResourceFormats();
+    RawParticles.RegisterResourceFormats();
     SPH.RegisterResourceFormats();
   }
 
@@ -176,12 +176,12 @@ class Controller {
     object: {
       scene: number,
       skybox: number,
-      fluid: boolean
+      particles: boolean
     }
   }) {
 
     this.ifSkybox = config.object.skybox != 0;
-    this.ifFluid = config.object.fluid;
+    this.ifParticles = config.object.particles;
 
     if (config.property == 'skybox' || config.property == 'all') {
       switch (config.object.skybox) {
@@ -346,11 +346,9 @@ class Controller {
     this.config.initSimulationOptions((e) => this.simulator.optionsChange(e));
     this.simulator.setConfig(this.config.simulationOptions);
 
-    // fluid renderer
-    this.fluidRender = new FilteredParticleFluid(this.simulator, this.camera);
-    await this.fluidRender.initResource(this.globalResource.resource);
-    this.config.initRenderingOptions((e) => this.fluidRender.optionsChange(e));
-    this.fluidRender.setConfig(this.config.renderingOptions);
+    // raw particle renderer
+    this.particleRenderer = new RawParticles(this.simulator);
+    await this.particleRenderer.initResource(this.globalResource.resource);
 
     this.config.initSceneOptions(
       (e) => this.setSceneConfig(e),
@@ -394,9 +392,8 @@ class Controller {
     this.globalResource.setResource(renderPassEncoder);
     if(this.ifMesh) this.mesh.render(renderPassEncoder);
     if(this.ifSkybox) this.skybox.render(renderPassEncoder);
+    if(this.ifParticles) this.particleRenderer.render(renderPassEncoder);
     renderPassEncoder.end();
-
-    if (this.ifFluid) this.fluidRender.render(commandEncoder, ctxTextureView);
 
 		const commandBuffer = commandEncoder.finish();
     device.queue.submit([commandBuffer]);
@@ -432,11 +429,10 @@ class Controller {
     this.globalResource.setResource(renderPassEncoder);
     if(this.ifMesh) this.mesh.render(renderPassEncoder);
     if(this.ifSkybox) this.skybox.render(renderPassEncoder);
+    if(this.ifParticles) this.particleRenderer.render(renderPassEncoder);
     renderPassEncoder.end();
 
     commandEncoder.writeTimestamp(timeStampQuerySet, 5);
-
-    if (this.ifFluid) this.fluidRender.renderTimestamp(commandEncoder, ctxTextureView);
 
     commandEncoder.resolveQuerySet(
       timeStampQuerySet, 0, this.timeStampSize,

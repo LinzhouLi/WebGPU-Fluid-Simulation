@@ -7,17 +7,9 @@ class Config {
   public scnenOptions = {
     scene: 0,
     skybox: 1,
-    fluid: true,
+    particles: true,
     'Simulation Start/Pause': function() { }
   }
-
-  public renderingOptions = {
-    mode: 0,
-    filterSize: 32,
-    particleRadius: 0.02,
-    opacity: 0.25,
-    tintColor: { r: 6, g: 105, b: 217 }
-  };
 
   public simulationOptions = {
     iteration: 5,
@@ -42,24 +34,10 @@ class Config {
     sceneOptionGUI.add(this.scnenOptions, 'skybox',
       { 'None': 0, 'Sea': 1, 'Church': 2, 'Fall': 3, 'Mountain': 4 }
     );
-    sceneOptionGUI.add(this.scnenOptions, 'fluid');
+    sceneOptionGUI.add(this.scnenOptions, 'particles');
     sceneOptionGUI.add(this.scnenOptions, 'Simulation Start/Pause');
     sceneOptionGUI.onFinishChange(onChangeFunc);
 
-  }
-
-  public initRenderingOptions(onChangeFunc: (msg) => void) {
-
-    const renderingOptionGUI = this.gui.addFolder('Fluid Rendering Options');
-    renderingOptionGUI.add(this.renderingOptions, 'filterSize', 0, 32).step(2);
-    renderingOptionGUI.add(this.renderingOptions, 'mode', 
-      { 'PBR': 0, 'PBR(No Refraction)': 1, 'Diffuse': 2, 'Normal': 3, 'Depth': 4, 'Thickness': 5, 'Positon': 6 }
-    );
-    renderingOptionGUI.add(this.renderingOptions, 'particleRadius', 0.005, 0.05);
-    renderingOptionGUI.add(this.renderingOptions, 'opacity', 0, 1.0);
-    renderingOptionGUI.addColor(this.renderingOptions, 'tintColor', 255);
-    renderingOptionGUI.onFinishChange(onChangeFunc);
-    
   }
 
   public initSimulationOptions(onChangeFunc: (msg) => void) {

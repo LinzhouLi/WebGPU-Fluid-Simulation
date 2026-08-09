@@ -24,12 +24,14 @@ class RawParticles {
 
   protected mesh: THREE.Mesh;
   protected renderPipeline: GPURenderPipeline;
+  protected bindGroup: GPUBindGroup;
   protected simulator: SPH;
 
   protected vertexCount: number;
   protected vertexBufferAttributes: string[]; // resource name
   protected vertexBufferData: Record<string, TypedArray>; // resource in CPU
   protected vertexBuffers: Record<string, GPUBuffer>; // resource in GPU
+  protected indexFormat: GPUIndexFormat;
 
   protected resourceAttributes: string[]; // resource name
   protected resourceCPUData: Record<string, BufferData>; // resource in CPU
@@ -39,7 +41,7 @@ class RawParticles {
 
     this.simulator = simulator;
     this.mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.02, 8, 8), // radius, width segment, height segment
+      new THREE.SphereGeometry(0.007, 8, 8), // radius, width segment, height segment
       new THREE.MeshLambertMaterial({ color: 0x049ef4 })
     );
     
@@ -47,6 +49,16 @@ class RawParticles {
 
   public static RegisterResourceFormats() {
     ResourceFactory.RegisterFormats(RawParticles.ResourceFormats);
+  }
+
+  public async initResource(
+    globalResource: { [x: string]: GPUBuffer | GPUTexture | GPUSampler }
+  ) {
+
+    this.initVertexBuffer();
+    await this.initGroupResource();
+    await this.initPipeline(globalResource);
+
   }
 
   public initVertexBuffer() {
@@ -62,6 +74,7 @@ class RawParticles {
       this.vertexBufferAttributes.push('index');
       this.vertexBufferData.index = this.mesh.geometry.index.array as TypedArray;
       this.vertexCount = this.mesh.geometry.index.count;
+      this.indexFormat = this.mesh.geometry.index.array instanceof Uint32Array ? 'uint32' : 'uint16';
     }
     else {
       this.vertexCount = this.mesh.geometry.attributes.position.count;
@@ -73,17 +86,13 @@ class RawParticles {
 
   public async initGroupResource() {
 
-    const material = this.mesh.material as THREE.MeshPhysicalMaterial;
+    const material = this.mesh.material as THREE.MeshLambertMaterial;
 
     this.resourceAttributes = ['material', 'particlePosition'];
     this.resourceCPUData = {
-      material: { 
+      material: {
         value: new Float32Array([
-          material.metalness, 
-          material.specularIntensity, 
-          material.roughness,
-          0, // for alignment
-          ...material.color.toArray(), 0 // fix bug: bind group is too small!
+          ...material.color.toArray(), 1
         ])
       }
     };
@@ -93,8 +102,7 @@ class RawParticles {
     
   }
 
-  public async setRenderBundle(
-    bundleEncoder: GPURenderBundleEncoder,
+  protected async initPipeline(
     globalResource: { [x: string]: GPUBuffer | GPUTexture | GPUSampler }
   ) {
     
@@ -104,7 +112,7 @@ class RawParticles {
       label: 'Particle Rendering Pipeline Bind Group Layout',
       entries: [{ // camera
         binding: 0,
-        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        visibility: GPUShaderStage.VERTEX,
         buffer: { type: 'uniform' }
       }, { // material
         binding: 1,
@@ -121,7 +129,7 @@ class RawParticles {
       }]
     });
 
-    const bindGroup = device.createBindGroup({
+    this.bindGroup = device.createBindGroup({
       label: 'Particle Rendering Pipeline Bind Group',
       layout: bindGroupLayout,
       entries: [{ // camera
@@ -132,10 +140,7 @@ class RawParticles {
         resource: { buffer: this.resource.material as GPUBuffer }
       }, { // instance positions
         binding: 2,
-        resource: { 
-          buffer: this.simulator.position,
-          size: 4 * this.simulator.particleCount * Float32Array.BYTES_PER_ELEMENT
-        }
+        resource: { buffer: this.simulator.position }
       }, { // light
         binding: 3,
         resource: { buffer: globalResource.directionalLight as GPUBuffer }
@@ -168,28 +173,32 @@ class RawParticles {
       }
     });
     
-    bundleEncoder.setPipeline(this.renderPipeline);
+  }
+
+  public render(renderPassEncoder: GPURenderPassEncoder) {
+
+    renderPassEncoder.setPipeline(this.renderPipeline);
 
     // set vertex and index buffers
     let loction = 0;
     let indexed = false;
     for (const attribute of this.vertexBufferAttributes) {
       if (attribute === 'index') {
-        bundleEncoder.setIndexBuffer(this.vertexBuffers.index, 'uint16');
+        renderPassEncoder.setIndexBuffer(this.vertexBuffers.index, this.indexFormat);
         indexed = true;
       }
       else {
-        bundleEncoder.setVertexBuffer(loction, this.vertexBuffers[attribute]);
+        renderPassEncoder.setVertexBuffer(loction, this.vertexBuffers[attribute]);
         loction++;
       }
     }
 
     // set bind group
-    bundleEncoder.setBindGroup(0, bindGroup);
+    renderPassEncoder.setBindGroup(0, this.bindGroup);
 
     // draw
-    if (indexed) bundleEncoder.drawIndexed(this.vertexCount, this.simulator.particleCount);
-    else bundleEncoder.draw(this.vertexCount, this.simulator.particleCount);
+    if (indexed) renderPassEncoder.drawIndexed(this.vertexCount, this.simulator.particleCount);
+    else renderPassEncoder.draw(this.vertexCount, this.simulator.particleCount);
     
   }
 

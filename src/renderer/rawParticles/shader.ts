@@ -10,13 +10,6 @@ struct Camera {
   params: vec4<f32>
 };
 
-struct Material {
-  metalness: f32,
-  specularIntensity: f32,
-  roughness: f32,
-  color: vec3<f32>
-};
-
 struct VertexInput {
   @builtin(instance_index) instanceIndex: u32,
   @location(0) position: vec3<f32>,
@@ -32,7 +25,6 @@ struct VertexOutput {
 };
 
 @group(0) @binding(0) var<uniform> camera: Camera;
-@group(0) @binding(1) var<uniform> material: Material;
 @group(0) @binding(2) var<storage> instancePositions: array<vec3<f32>>;
 
 @vertex
@@ -65,10 +57,7 @@ struct DirectionalLight {
 };
 
 struct Material {
-  metalness: f32,
-  specularIntensity: f32,
-  roughness: f32,
-  color: vec3<f32>
+  color: vec4<f32>
 };
 
 struct FragmentInput {
@@ -84,7 +73,7 @@ struct FragmentInput {
 fn main(input: FragmentInput) -> @location(0) vec4<f32> {
   let NoL = saturate(dot(normalize(input.vNormal), light.direction));
   let irradiance = NoL * light.color;
-  let diffuse = (irradiance + 0.02) * 0.3183098861837907 * material.color; // RECIPROCAL_PI
+  let diffuse = (irradiance + 0.02) * 0.3183098861837907 * material.color.rgb; // RECIPROCAL_PI
   return vec4<f32>(pow(diffuse, vec3<f32>(0.454545)), 1.0);
 }
 
