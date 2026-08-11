@@ -25,4 +25,3 @@ dist-ssr
 
 package-lock.json
 build/
-bench_results/
