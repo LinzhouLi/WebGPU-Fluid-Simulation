@@ -32,7 +32,7 @@ class Config {
       { 'Bunny Drop': 0, 'Cube Drop': 1, 'Water Droplet': 2, 'Double Dam Break': 3, 'Boundary': 4 }
     );
     sceneOptionGUI.add(this.scnenOptions, 'skybox',
-      { 'None': 0, 'Sea': 1, 'Church': 2, 'Fall': 3, 'Mountain': 4 }
+      { 'None': 0, 'Sea': 1 }
     );
     sceneOptionGUI.add(this.scnenOptions, 'particles');
     sceneOptionGUI.add(this.scnenOptions, 'Simulation Start/Pause');

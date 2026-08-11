@@ -101,9 +101,9 @@ class Controller {
   private particleRenderer: RawParticles;
 
   private background_sea: ImageBitmap[];
-  private background_church: ImageBitmap[];
-  private background_fall: ImageBitmap[];
-  private background_mountain: ImageBitmap[];
+  // private background_church: ImageBitmap[];
+  // private background_fall: ImageBitmap[];
+  // private background_mountain: ImageBitmap[];
   private bunny_mesh: THREE.Mesh;
   private torus_mesh: THREE.Mesh;
   private torus_boundary: string;
@@ -186,9 +186,9 @@ class Controller {
     if (config.property == 'skybox' || config.property == 'all') {
       switch (config.object.skybox) {
         case 1: { this.globalResource.setSkybox(this.background_sea); break; }
-        case 2: { this.globalResource.setSkybox(this.background_church); break; }
-        case 3: { this.globalResource.setSkybox(this.background_fall); break; }
-        case 4: { this.globalResource.setSkybox(this.background_mountain); break; }
+        // case 2: { this.globalResource.setSkybox(this.background_church); break; }
+        // case 3: { this.globalResource.setSkybox(this.background_fall); break; }
+        // case 4: { this.globalResource.setSkybox(this.background_mountain); break; }
       }
     }
 
@@ -258,31 +258,31 @@ class Controller {
       "skybox/sea/front.jpg", "skybox/sea/back.jpg"  // pz nz
     ]);
     this.background_sea = await resourceFactory.toBitmaps(cubetex_sea.image);
-    onProgress(35);
-
-    const cubetex_church = await loader.loadCubeTexture([
-      "skybox/church/posx.jpg", "skybox/church/negx.jpg", // px nx
-      "skybox/church/posy.jpg", "skybox/church/negy.jpg", // py ny
-      "skybox/church/posz.jpg", "skybox/church/negz.jpg"  // pz nz
-    ]);
-    this.background_church = await resourceFactory.toBitmaps(cubetex_church.image);
-    onProgress(50);
-
-    const cubetex_fall = await loader.loadCubeTexture([
-      "skybox/fall/posx.jpg", "skybox/fall/negx.jpg", // px nx
-      "skybox/fall/posy.jpg", "skybox/fall/negy.jpg", // py ny
-      "skybox/fall/posz.jpg", "skybox/fall/negz.jpg"  // pz nz
-    ]);
-    this.background_fall = await resourceFactory.toBitmaps(cubetex_fall.image);
-    onProgress(65);
-
-    const cubetex_mountain = await loader.loadCubeTexture([
-      "skybox/mountain/posx.jpg", "skybox/mountain/negx.jpg", // px nx
-      "skybox/mountain/posy.jpg", "skybox/mountain/negy.jpg", // py ny
-      "skybox/mountain/posz.jpg", "skybox/mountain/negz.jpg"  // pz nz
-    ]);
-    this.background_mountain = await resourceFactory.toBitmaps(cubetex_mountain.image);
     onProgress(80);
+
+    // const cubetex_church = await loader.loadCubeTexture([
+    //   "skybox/church/posx.jpg", "skybox/church/negx.jpg", // px nx
+    //   "skybox/church/posy.jpg", "skybox/church/negy.jpg", // py ny
+    //   "skybox/church/posz.jpg", "skybox/church/negz.jpg"  // pz nz
+    // ]);
+    // this.background_church = await resourceFactory.toBitmaps(cubetex_church.image);
+    // onProgress(50);
+
+    // const cubetex_fall = await loader.loadCubeTexture([
+    //   "skybox/fall/posx.jpg", "skybox/fall/negx.jpg", // px nx
+    //   "skybox/fall/posy.jpg", "skybox/fall/negy.jpg", // py ny
+    //   "skybox/fall/posz.jpg", "skybox/fall/negz.jpg"  // pz nz
+    // ]);
+    // this.background_fall = await resourceFactory.toBitmaps(cubetex_fall.image);
+    // onProgress(65);
+
+    // const cubetex_mountain = await loader.loadCubeTexture([
+    //   "skybox/mountain/posx.jpg", "skybox/mountain/negx.jpg", // px nx
+    //   "skybox/mountain/posy.jpg", "skybox/mountain/negy.jpg", // py ny
+    //   "skybox/mountain/posz.jpg", "skybox/mountain/negz.jpg"  // pz nz
+    // ]);
+    // this.background_mountain = await resourceFactory.toBitmaps(cubetex_mountain.image);
+    // onProgress(80);
 
     const glb = await loader.loadGLTF("model/bunny.glb", true);
     this.bunny_mesh = glb.scene.children[0] as THREE.Mesh;
