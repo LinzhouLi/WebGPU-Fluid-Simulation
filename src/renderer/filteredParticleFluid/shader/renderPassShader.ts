@@ -21,6 +21,7 @@ struct FragOutput {
 @group(0) @binding(4) var fluidDepthMap: texture_2d<f32>;
 @group(0) @binding(5) var fluidVolumeMap: texture_2d<f32>;
 @group(0) @binding(6) var envMap: texture_cube<f32>;
+@group(0) @binding(7) var fluidNormalMap: texture_2d<f32>;
 
 ${ShaderFunction.sRGBGammaEncode}
 
@@ -35,13 +36,6 @@ ${ShaderFunction.sRGBGammaEncode}
 //     -depthEye
 //   );
 // }
-
-fn getNormal(positionEye: vec3<f32>) -> vec3<f32> {
-  let ddx = dpdx(positionEye);
-  let ddy = dpdy(positionEye);
-  let normalEye = normalize(cross(-ddx, ddy));
-  return normalEye;
-}
 
 fn getPosition(uv: vec2<f32>, depthEye: f32) -> vec3<f32> {
   return vec3<f32>(
@@ -118,11 +112,11 @@ fn shading(
 @fragment
 fn main(input: FragInput) -> FragOutput {
 
-  let frameCoord = vec2<u32>(floor(input.coord.zw));
+  let frameCoord = vec2<i32>(floor(input.coord.zw));
   let depthEye = textureLoad(fluidDepthMap, frameCoord, 0).r;
+  if (depthEye <= 0.0) { discard; }
   let positionEye = getPosition(input.coord.xy, depthEye);
-  let normalEye = getNormal(positionEye);
-  if (depthEye == 0.0) { discard; }
+  let normalEye = textureLoad(fluidNormalMap, frameCoord, 0).xyz;
   let fluidVolume = 0.02 * textureSample(fluidVolumeMap, linearSampler, input.coord.xy).r;
 
   var color: vec4<f32>;

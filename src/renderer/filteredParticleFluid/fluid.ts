@@ -41,6 +41,20 @@ class FilteredParticleFluid {
         } as GPUTextureBindingLayout
       },
 
+      fluidNormalMap: {
+        type: 'texture' as ResourceType,
+        label: 'Fluid Normal Map',
+        visibility: GPUShaderStage.FRAGMENT,
+        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+        size: [canvasSize.width, canvasSize.height],
+        dimension: '2d' as GPUTextureDimension,
+        format: 'rgba16float' as GPUTextureFormat,
+        layout: {
+          sampleType: 'float' as GPUTextureSampleType,
+          viewDimension: '2d' as GPUTextureViewDimension,
+        } as GPUTextureBindingLayout
+      },
+
       renderingOptions: {
         type: 'buffer' as ResourceType,
         label: 'Rendering Options', 
@@ -90,7 +104,9 @@ class FilteredParticleFluid {
     this.optionsArray = new ArrayBuffer(8 * Float32Array.BYTES_PER_ELEMENT);
     this.optionsBufferView = new DataView(this.optionsArray);
     this.renderDepthMap = globalResource.renderDepthMap as GPUTexture;
-    this.resourceAttributes = [ 'fluidDepthMap', 'fluidVolumeMap', 'renderingOptions' ];
+    this.resourceAttributes = [
+      'fluidDepthMap', 'fluidVolumeMap', 'fluidNormalMap', 'renderingOptions'
+    ];
     this.resource = await resourceFactory.createResource(
       this.resourceAttributes, 
       { renderingOptions: { value: this.optionsArray } }
